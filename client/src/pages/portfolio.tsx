@@ -98,7 +98,7 @@ export default function Portfolio() {
                 <HoldingsList onSelectStock={setSelectedStock} />
               </div>
               <div className="space-y-6">
-                <Watchlist onSelectStock={setSelectedStock} />
+                <Watchlist onSelectStock={setSelectedStock} onAddToWatchlist={() => setShowAddStock(true)} />
                 <MarketOverview />
                 
                 {/* Quick Actions */}
@@ -136,7 +136,7 @@ export default function Portfolio() {
         {activeTab === "watchlist" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <Watchlist onSelectStock={setSelectedStock} expanded />
+              <Watchlist onSelectStock={setSelectedStock} expanded onAddToWatchlist={() => setShowAddStock(true)} />
             </div>
             <div className="space-y-6">
               <MarketOverview />

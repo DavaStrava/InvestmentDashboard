@@ -74,7 +74,7 @@ export default function StockSearch({ onSelectStock }: StockSearchProps) {
               <div className="p-4 text-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
               </div>
-            ) : !searchResults || searchResults.length === 0 ? (
+            ) : !searchResults || !Array.isArray(searchResults) || searchResults.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
                 {debouncedQuery.length >= 2 ? "No results found" : "Type to search..."}
               </div>

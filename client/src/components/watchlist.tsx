@@ -10,9 +10,10 @@ import { Plus, Trash2 } from "lucide-react";
 interface WatchlistProps {
   onSelectStock: (symbol: string) => void;
   expanded?: boolean;
+  onAddToWatchlist?: () => void;
 }
 
-export default function Watchlist({ onSelectStock, expanded = false }: WatchlistProps) {
+export default function Watchlist({ onSelectStock, expanded = false, onAddToWatchlist }: WatchlistProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -71,7 +72,12 @@ export default function Watchlist({ onSelectStock, expanded = false }: Watchlist
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Watchlist</CardTitle>
-          <Button variant="ghost" size="sm" className="text-primary hover:text-blue-700">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-primary hover:text-blue-700"
+            onClick={onAddToWatchlist}
+          >
             <Plus className="w-4 h-4 mr-1" />
             Add
           </Button>
