@@ -98,6 +98,9 @@ export default function AddStockModal({ onClose }: AddStockModalProps) {
   };
 
   const onSubmit = (data: AddStockForm) => {
+    console.log("Form submitted with data:", data);
+    console.log("Form errors:", form.formState.errors);
+    
     if (data.type === "holding") {
       addHoldingMutation.mutate({
         symbol: data.symbol,
