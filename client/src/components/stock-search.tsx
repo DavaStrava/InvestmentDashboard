@@ -25,7 +25,7 @@ export default function StockSearch({ onSelectStock }: StockSearchProps) {
   }, [query]);
 
   const { data: searchResults, isLoading } = useQuery({
-    queryKey: ["/api/stocks/search", debouncedQuery],
+    queryKey: [`/api/stocks/search?q=${encodeURIComponent(debouncedQuery)}`],
     enabled: debouncedQuery.length >= 2,
     staleTime: 60000, // Cache for 1 minute
   });

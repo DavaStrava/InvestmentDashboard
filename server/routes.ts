@@ -4,24 +4,110 @@ import { storage } from "./storage";
 import { insertHoldingSchema, insertWatchlistSchema, type StockQuote, type PortfolioSummary, type HoldingWithQuote } from "@shared/schema";
 import { z } from "zod";
 
-const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || process.env.VITE_ALPHA_VANTAGE_API_KEY || "demo";
+// API Configuration - supports multiple providers
+const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY;
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
 
-async function fetchStockQuote(symbol: string): Promise<StockQuote | null> {
+// Finnhub API implementation
+async function fetchStockQuoteFromFinnhub(symbol: string): Promise<StockQuote | null> {
+  if (!FINNHUB_API_KEY) return null;
+  
   try {
-    // Real-time quote
+    const [quoteResponse, profileResponse] = await Promise.all([
+      fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`),
+      fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`)
+    ]);
+    
+    const quoteData = await quoteResponse.json();
+    const profileData = await profileResponse.json();
+    
+    if (quoteData.error || !quoteData.c) return null;
+    
+    const price = quoteData.c;
+    const change = quoteData.d || 0;
+    const changePercent = quoteData.dp || 0;
+    
+    return {
+      symbol: symbol.toUpperCase(),
+      companyName: profileData.name || symbol,
+      price,
+      change,
+      changePercent,
+      volume: quoteData.v || 0,
+      marketCap: profileData.marketCapitalization,
+      peRatio: undefined,
+      earningsDate: undefined,
+      high52Week: quoteData.h,
+      low52Week: quoteData.l,
+      dividendYield: undefined,
+      eps: undefined,
+      beta: undefined,
+      roe: undefined,
+    };
+  } catch (error) {
+    console.error(`Finnhub error for ${symbol}:`, error);
+    return null;
+  }
+}
+
+// Twelve Data API implementation  
+async function fetchStockQuoteFromTwelveData(symbol: string): Promise<StockQuote | null> {
+  if (!TWELVE_DATA_API_KEY) return null;
+  
+  try {
+    const response = await fetch(
+      `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=${TWELVE_DATA_API_KEY}`
+    );
+    const data = await response.json();
+    
+    if (data.status === "error" || !data.close) return null;
+    
+    const price = parseFloat(data.close);
+    const change = parseFloat(data.change) || 0;
+    const changePercent = parseFloat(data.percent_change) || 0;
+    
+    return {
+      symbol: data.symbol || symbol.toUpperCase(),
+      companyName: data.name || symbol,
+      price,
+      change,
+      changePercent,
+      volume: parseInt(data.volume) || 0,
+      marketCap: undefined,
+      peRatio: undefined,
+      earningsDate: undefined,
+      high52Week: parseFloat(data.fifty_two_week?.high) || undefined,
+      low52Week: parseFloat(data.fifty_two_week?.low) || undefined,
+      dividendYield: undefined,
+      eps: undefined,
+      beta: undefined,
+      roe: undefined,
+    };
+  } catch (error) {
+    console.error(`Twelve Data error for ${symbol}:`, error);
+    return null;
+  }
+}
+
+// Alpha Vantage API implementation (existing)
+async function fetchStockQuoteFromAlphaVantage(symbol: string): Promise<StockQuote | null> {
+  if (!ALPHA_VANTAGE_API_KEY) return null;
+  
+  try {
     const quoteResponse = await fetch(
       `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
     );
     const quoteData = await quoteResponse.json();
     
-    if (quoteData["Error Message"] || quoteData["Note"]) {
+    if (quoteData["Error Message"] || quoteData["Note"] || quoteData["Information"]) {
       return null;
     }
 
     const quote = quoteData["Global Quote"];
     if (!quote) return null;
 
-    // Company overview for additional metrics
     const overviewResponse = await fetch(
       `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
     );
@@ -49,27 +135,119 @@ async function fetchStockQuote(symbol: string): Promise<StockQuote | null> {
       roe: overviewData.ReturnOnEquityTTM ? parseFloat(overviewData.ReturnOnEquityTTM) : undefined,
     };
   } catch (error) {
-    console.error(`Error fetching quote for ${symbol}:`, error);
+    console.error(`Alpha Vantage error for ${symbol}:`, error);
     return null;
   }
 }
 
-async function searchStocks(query: string): Promise<any[]> {
+// Main quote function that tries multiple providers
+async function fetchStockQuote(symbol: string): Promise<StockQuote | null> {
+  // Try providers in order of preference
+  const providers = [
+    fetchStockQuoteFromFinnhub,
+    fetchStockQuoteFromTwelveData,
+    fetchStockQuoteFromAlphaVantage
+  ];
+  
+  for (const provider of providers) {
+    try {
+      const result = await provider(symbol);
+      if (result) return result;
+    } catch (error) {
+      console.error(`Provider failed for ${symbol}:`, error);
+      continue;
+    }
+  }
+  
+  return null;
+}
+
+// Search implementation for multiple providers
+async function searchStocksFromFinnhub(query: string): Promise<any[]> {
+  if (!FINNHUB_API_KEY) return [];
+  
+  try {
+    const response = await fetch(
+      `https://finnhub.io/api/v1/search?q=${query}&token=${FINNHUB_API_KEY}`
+    );
+    const data = await response.json();
+    
+    if (data.error) return [];
+    
+    return (data.result || []).map((item: any) => ({
+      "1. symbol": item.symbol,
+      "2. name": item.description,
+      "3. type": item.type,
+      "4. region": "US",
+    }));
+  } catch (error) {
+    console.error("Finnhub search error:", error);
+    return [];
+  }
+}
+
+async function searchStocksFromTwelveData(query: string): Promise<any[]> {
+  if (!TWELVE_DATA_API_KEY) return [];
+  
+  try {
+    const response = await fetch(
+      `https://api.twelvedata.com/symbol_search?symbol=${query}&apikey=${TWELVE_DATA_API_KEY}`
+    );
+    const data = await response.json();
+    
+    if (data.status === "error") return [];
+    
+    return (data.data || []).map((item: any) => ({
+      "1. symbol": item.symbol,
+      "2. name": item.instrument_name,
+      "3. type": item.instrument_type,
+      "4. region": item.country,
+    }));
+  } catch (error) {
+    console.error("Twelve Data search error:", error);
+    return [];
+  }
+}
+
+async function searchStocksFromAlphaVantage(query: string): Promise<any[]> {
+  if (!ALPHA_VANTAGE_API_KEY) return [];
+  
   try {
     const response = await fetch(
       `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${query}&apikey=${ALPHA_VANTAGE_API_KEY}`
     );
     const data = await response.json();
     
-    if (data["Error Message"] || data["Note"]) {
+    if (data["Error Message"] || data["Note"] || data["Information"]) {
       return [];
     }
 
     return data["bestMatches"] || [];
   } catch (error) {
-    console.error("Error searching stocks:", error);
+    console.error("Alpha Vantage search error:", error);
     return [];
   }
+}
+
+async function searchStocks(query: string): Promise<any[]> {
+  // Try search providers in order
+  const searchProviders = [
+    searchStocksFromFinnhub,
+    searchStocksFromTwelveData,
+    searchStocksFromAlphaVantage
+  ];
+  
+  for (const provider of searchProviders) {
+    try {
+      const results = await provider(query);
+      if (results && results.length > 0) return results;
+    } catch (error) {
+      console.error(`Search provider failed for ${query}:`, error);
+      continue;
+    }
+  }
+  
+  return [];
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
