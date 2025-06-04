@@ -20,9 +20,17 @@ interface AddStockModalProps {
 
 const addStockSchema = z.object({
   symbol: z.string().min(1, "Symbol is required"),
-  shares: z.string().min(1, "Shares is required"),
-  avgCostPerShare: z.string().min(1, "Average cost is required"),
+  shares: z.string().optional(),
+  avgCostPerShare: z.string().optional(),
   type: z.enum(["holding", "watchlist"]),
+}).refine((data) => {
+  if (data.type === "holding") {
+    return data.shares && data.shares.length > 0 && data.avgCostPerShare && data.avgCostPerShare.length > 0;
+  }
+  return true;
+}, {
+  message: "Shares and average cost are required for portfolio holdings",
+  path: ["shares"],
 });
 
 type AddStockForm = z.infer<typeof addStockSchema>;
@@ -105,8 +113,8 @@ export default function AddStockModal({ onClose }: AddStockModalProps) {
       addHoldingMutation.mutate({
         symbol: data.symbol,
         companyName: selectedQuote?.companyName || data.symbol,
-        shares: data.shares,
-        avgCostPerShare: data.avgCostPerShare,
+        shares: data.shares || "0",
+        avgCostPerShare: data.avgCostPerShare || "0",
       });
     } else {
       addWatchlistMutation.mutate({
