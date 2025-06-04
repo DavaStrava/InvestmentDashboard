@@ -65,27 +65,78 @@ export default function MarketOverview() {
               </div>
             )}
             
-            {Array.isArray(indices) && indices.map((index: any) => (
-              <div key={index.symbol} className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <p className="font-medium text-gray-900">{index.name}</p>
-                    {index.isFutures && (
-                      <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
-                        Futures
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500">{index.symbol}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">{formatNumber(index.price)}</p>
-                  <p className={`text-sm ${getChangeColor(index.change)}`}>
-                    {index.change >= 0 ? "+" : ""}{formatNumber(index.change)} ({formatPercent(index.changePercent)})
-                  </p>
-                </div>
-              </div>
-            ))}
+            {Array.isArray(indices) && (() => {
+              // Group indices by region
+              const usIndices = indices.filter((index: any) => index.region === "US");
+              const intlIndices = indices.filter((index: any) => index.region !== "US");
+              
+              return (
+                <>
+                  {/* US Indices */}
+                  {usIndices.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-gray-600 border-b border-gray-100 pb-1">
+                        United States
+                      </h4>
+                      {usIndices.map((index: any) => (
+                        <div key={index.symbol} className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <p className="font-medium text-gray-900">{index.name}</p>
+                              {index.isFutures && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                                  Futures
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500">{index.symbol}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">{formatNumber(index.price)}</p>
+                            <p className={`text-sm ${getChangeColor(index.change)}`}>
+                              {index.change >= 0 ? "+" : ""}{formatNumber(index.change)} ({formatPercent(index.changePercent)})
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* International Indices */}
+                  {intlIndices.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-gray-600 border-b border-gray-100 pb-1">
+                        International
+                      </h4>
+                      {intlIndices.map((index: any) => (
+                        <div key={index.symbol} className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <p className="font-medium text-gray-900">{index.name}</p>
+                              <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                                {index.region}
+                              </span>
+                              {index.isFutures && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                                  Futures
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500">{index.symbol}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">{formatNumber(index.price)}</p>
+                            <p className={`text-sm ${getChangeColor(index.change)}`}>
+                              {index.change >= 0 ? "+" : ""}{formatNumber(index.change)} ({formatPercent(index.changePercent)})
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </CardContent>

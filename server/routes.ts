@@ -567,12 +567,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const marketData = [];
       const marketOpen = isMarketOpen();
       
-      // Major US indices (using ETFs as proxies due to API limitations)
+      // Major US and international indices (using ETFs as proxies due to API limitations)
       const indices = [
-        { symbol: "SPY", futuresSymbol: "ES=F", name: "S&P 500", description: "SPDR S&P 500 ETF" },
-        { symbol: "QQQ", futuresSymbol: "NQ=F", name: "NASDAQ 100", description: "Invesco QQQ ETF" },
-        { symbol: "DIA", futuresSymbol: "YM=F", name: "Dow Jones", description: "SPDR Dow Jones ETF" },
-        { symbol: "IWM", futuresSymbol: "RTY=F", name: "Russell 2000", description: "iShares Russell 2000 ETF" }
+        // US Indices
+        { symbol: "SPY", futuresSymbol: "ES=F", name: "S&P 500", description: "SPDR S&P 500 ETF", region: "US" },
+        { symbol: "QQQ", futuresSymbol: "NQ=F", name: "NASDAQ 100", description: "Invesco QQQ ETF", region: "US" },
+        { symbol: "DIA", futuresSymbol: "YM=F", name: "Dow Jones", description: "SPDR Dow Jones ETF", region: "US" },
+        { symbol: "IWM", futuresSymbol: "RTY=F", name: "Russell 2000", description: "iShares Russell 2000 ETF", region: "US" },
+        
+        // International Indices
+        { symbol: "EFA", futuresSymbol: null, name: "EAFE", description: "iShares MSCI EAFE ETF", region: "Europe/Asia" },
+        { symbol: "EEM", futuresSymbol: null, name: "Emerging Markets", description: "iShares MSCI Emerging Markets ETF", region: "Emerging" },
+        { symbol: "FXI", futuresSymbol: null, name: "China Large-Cap", description: "iShares China Large-Cap ETF", region: "China" },
+        { symbol: "EWJ", futuresSymbol: null, name: "Japan", description: "iShares MSCI Japan ETF", region: "Japan" },
+        { symbol: "EWG", futuresSymbol: null, name: "Germany", description: "iShares MSCI Germany ETF", region: "Germany" },
+        { symbol: "EWU", futuresSymbol: null, name: "United Kingdom", description: "iShares MSCI United Kingdom ETF", region: "UK" }
       ];
 
       for (const index of indices) {
@@ -582,8 +591,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Always get ETF data as proxy for index
         data = await fetchIndexData(index.symbol);
         
-        // If market is closed, try to get futures data as well
-        if (!marketOpen && data) {
+        // If market is closed and futures are available, try to get futures data
+        if (!marketOpen && index.futuresSymbol && data) {
           const futuresData = await fetchFuturesData(index.futuresSymbol);
           if (futuresData) {
             // Use futures data if available when markets are closed
@@ -599,6 +608,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             price: data.price,
             change: data.change,
             changePercent: data.changePercent,
+            region: index.region,
             isFutures,
             marketOpen,
           });
