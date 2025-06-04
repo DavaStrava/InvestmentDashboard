@@ -591,6 +591,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Always get ETF data as proxy for index
         data = await fetchIndexData(index.symbol);
         
+        if (!data) {
+          continue;
+        }
+        
         // If market is closed and futures are available, try to get futures data
         if (!marketOpen && index.futuresSymbol && data) {
           const futuresData = await fetchFuturesData(index.futuresSymbol);
@@ -601,18 +605,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        if (data) {
-          marketData.push({
-            symbol: index.symbol,
-            name: index.name + (isFutures ? " Futures" : ""),
-            price: data.price,
-            change: data.change,
-            changePercent: data.changePercent,
-            region: index.region,
-            isFutures,
-            marketOpen,
-          });
-        }
+        marketData.push({
+          symbol: index.symbol,
+          name: index.name + (isFutures ? " Futures" : ""),
+          price: data.price,
+          change: data.change,
+          changePercent: data.changePercent,
+          region: index.region,
+          isFutures,
+          marketOpen,
+        });
       }
 
       res.json(marketData);
