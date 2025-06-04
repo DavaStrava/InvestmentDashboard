@@ -85,7 +85,7 @@ export default function Watchlist({ onSelectStock, expanded = false, onAddToWatc
       </CardHeader>
 
       <CardContent>
-        {!watchlist || watchlist.length === 0 ? (
+        {!watchlist || !Array.isArray(watchlist) || watchlist.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-gray-400 mb-4">
               <i className="fas fa-star text-3xl"></i>
@@ -97,7 +97,7 @@ export default function Watchlist({ onSelectStock, expanded = false, onAddToWatc
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {watchlist.slice(0, expanded ? undefined : 6).map((item: any) => (
+            {Array.isArray(watchlist) && watchlist.slice(0, expanded ? undefined : 6).map((item: any) => (
               <div
                 key={item.id}
                 className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group"

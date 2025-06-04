@@ -80,7 +80,7 @@ export default function StockSearch({ onSelectStock }: StockSearchProps) {
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {searchResults.slice(0, 8).map((result: any) => (
+                {Array.isArray(searchResults) && searchResults.slice(0, 8).map((result: any) => (
                   <div
                     key={result["1. symbol"]}
                     className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
