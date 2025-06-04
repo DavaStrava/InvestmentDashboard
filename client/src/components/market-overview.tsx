@@ -42,16 +42,40 @@ export default function MarketOverview() {
       </CardHeader>
 
       <CardContent>
-        {!indices || indices.length === 0 ? (
+        {!indices || !Array.isArray(indices) || indices.length === 0 ? (
           <div className="text-center py-4">
             <p className="text-sm text-gray-500">Market data unavailable</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {indices.map((index: any) => (
+            {/* Market Status Indicator */}
+            {Array.isArray(indices) && indices.length > 0 && (
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    indices[0]?.marketOpen ? 'bg-green-500' : 'bg-red-500'
+                  }`}></div>
+                  <span className="text-sm font-medium text-gray-700">
+                    {indices[0]?.marketOpen ? 'Markets Open' : 'Markets Closed'}
+                  </span>
+                </div>
+                {!indices[0]?.marketOpen && (
+                  <span className="text-xs text-gray-500">Showing Futures</span>
+                )}
+              </div>
+            )}
+            
+            {Array.isArray(indices) && indices.map((index: any) => (
               <div key={index.symbol} className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{index.name}</p>
+                  <div className="flex items-center space-x-2">
+                    <p className="font-medium text-gray-900">{index.name}</p>
+                    {index.isFutures && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                        Futures
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">{index.symbol}</p>
                 </div>
                 <div className="text-right">

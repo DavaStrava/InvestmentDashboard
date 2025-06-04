@@ -498,32 +498,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check if markets are open (NYSE hours: 9:30 AM - 4:00 PM ET)
+  function isMarketOpen(): boolean {
+    const now = new Date();
+    const et = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+    const dayOfWeek = et.getDay(); // 0 = Sunday, 6 = Saturday
+    const hour = et.getHours();
+    const minute = et.getMinutes();
+    const timeInMinutes = hour * 60 + minute;
+    
+    // Markets closed on weekends
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+    
+    // Market hours: 9:30 AM (570 minutes) to 4:00 PM (960 minutes) ET
+    return timeInMinutes >= 570 && timeInMinutes <= 960;
+  }
+
+  // Fetch index data from Finnhub
+  async function fetchIndexData(symbol: string): Promise<any> {
+    if (!FINNHUB_API_KEY) return null;
+    
+    try {
+      const response = await fetch(
+        `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`
+      );
+      const data = await response.json();
+      
+      if (data.error || !data.c) return null;
+      
+      return {
+        price: data.c,
+        change: data.d || 0,
+        changePercent: data.dp || 0,
+        previousClose: data.pc || 0,
+      };
+    } catch (error) {
+      console.error(`Error fetching index data for ${symbol}:`, error);
+      return null;
+    }
+  }
+
+  // Fetch futures data from Finnhub
+  async function fetchFuturesData(symbol: string): Promise<any> {
+    if (!FINNHUB_API_KEY) return null;
+    
+    try {
+      const response = await fetch(
+        `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`
+      );
+      const data = await response.json();
+      
+      if (data.error || !data.c) return null;
+      
+      return {
+        price: data.c,
+        change: data.d || 0,
+        changePercent: data.dp || 0,
+      };
+    } catch (error) {
+      console.error(`Error fetching futures data for ${symbol}:`, error);
+      return null;
+    }
+  }
+
   // Market data endpoint
   app.get("/api/market/indices", async (req, res) => {
     try {
-      const indices = ["SPY", "QQQ", "DIA"]; // S&P 500, NASDAQ, Dow Jones ETFs
       const marketData = [];
+      const marketOpen = isMarketOpen();
+      
+      // Major US indices (using ETFs as proxies due to API limitations)
+      const indices = [
+        { symbol: "SPY", futuresSymbol: "ES=F", name: "S&P 500", description: "SPDR S&P 500 ETF" },
+        { symbol: "QQQ", futuresSymbol: "NQ=F", name: "NASDAQ 100", description: "Invesco QQQ ETF" },
+        { symbol: "DIA", futuresSymbol: "YM=F", name: "Dow Jones", description: "SPDR Dow Jones ETF" },
+        { symbol: "IWM", futuresSymbol: "RTY=F", name: "Russell 2000", description: "iShares Russell 2000 ETF" }
+      ];
 
-      for (const symbol of indices) {
-        const quote = await fetchStockQuote(symbol);
-        if (quote) {
-          let name = symbol;
-          if (symbol === "SPY") name = "S&P 500";
-          else if (symbol === "QQQ") name = "NASDAQ";
-          else if (symbol === "DIA") name = "Dow Jones";
-
+      for (const index of indices) {
+        let data = null;
+        let isFutures = false;
+        
+        // Always get ETF data as proxy for index
+        data = await fetchIndexData(index.symbol);
+        
+        // If market is closed, try to get futures data as well
+        if (!marketOpen && data) {
+          const futuresData = await fetchFuturesData(index.futuresSymbol);
+          if (futuresData) {
+            // Use futures data if available when markets are closed
+            data = futuresData;
+            isFutures = true;
+          }
+        }
+        
+        if (data) {
           marketData.push({
-            symbol,
-            name,
-            price: quote.price,
-            change: quote.change,
-            changePercent: quote.changePercent,
+            symbol: index.symbol,
+            name: index.name + (isFutures ? " Futures" : ""),
+            price: data.price,
+            change: data.change,
+            changePercent: data.changePercent,
+            isFutures,
+            marketOpen,
           });
         }
       }
 
       res.json(marketData);
     } catch (error) {
+      console.error("Market data error:", error);
       res.status(500).json({ message: "Failed to fetch market data" });
     }
   });
