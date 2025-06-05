@@ -561,6 +561,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Fetch historical price data
+  async function fetchHistoricalData(symbol: string, range: string): Promise<any> {
+    // Try Alpha Vantage first for intraday data
+    if (ALPHA_VANTAGE_API_KEY && range === "1D") {
+      try {
+        const response = await fetch(
+          `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${ALPHA_VANTAGE_API_KEY}`
+        );
+        const data = await response.json();
+        
+        if (data["Time Series (5min)"]) {
+          const timeSeries = data["Time Series (5min)"];
+          const chartData = Object.entries(timeSeries)
+            .slice(0, 78) // Last 6.5 hours of trading
+            .reverse()
+            .map(([time, values]: [string, any]) => ({
+              time: new Date(time).toLocaleTimeString("en-US", { 
+                hour: "numeric", 
+                minute: "2-digit",
+                hour12: false 
+              }),
+              price: parseFloat(values["4. close"]),
+              volume: parseInt(values["5. volume"])
+            }));
+          
+          return chartData;
+        }
+      } catch (error) {
+        console.error("Alpha Vantage intraday error:", error);
+      }
+    }
+
+    // Try Finnhub for historical data
+    if (FINNHUB_API_KEY) {
+      try {
+        const now = Math.floor(Date.now() / 1000);
+        let from = now;
+        let resolution = "D";
+        
+        switch (range) {
+          case "1D":
+            from = now - 86400; // 1 day
+            resolution = "5";
+            break;
+          case "1W":
+            from = now - 604800; // 1 week
+            resolution = "60";
+            break;
+          case "1M":
+            from = now - 2592000; // 1 month
+            resolution = "D";
+            break;
+          case "3M":
+            from = now - 7776000; // 3 months
+            resolution = "D";
+            break;
+          case "1Y":
+            from = now - 31536000; // 1 year
+            resolution = "D";
+            break;
+        }
+
+        const response = await fetch(
+          `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${now}&token=${FINNHUB_API_KEY}`
+        );
+        const data = await response.json();
+        
+        if (data.s === "ok" && data.c && data.t) {
+          const chartData = data.t.map((timestamp: number, index: number) => ({
+            time: range === "1D" 
+              ? new Date(timestamp * 1000).toLocaleTimeString("en-US", { 
+                  hour: "numeric", 
+                  minute: "2-digit",
+                  hour12: false 
+                })
+              : new Date(timestamp * 1000).toLocaleDateString("en-US", { 
+                  month: "short", 
+                  day: "numeric" 
+                }),
+            price: data.c[index],
+            open: data.o[index],
+            high: data.h[index],
+            low: data.l[index],
+            volume: data.v[index]
+          }));
+          
+          return chartData;
+        }
+      } catch (error) {
+        console.error("Finnhub historical data error:", error);
+      }
+    }
+
+    return null;
+  }
+
+  // Historical price data endpoint
+  app.get("/api/stocks/:symbol/history", async (req, res) => {
+    const { symbol } = req.params;
+    const { range = "1M" } = req.query;
+    
+    try {
+      const historicalData = await fetchHistoricalData(symbol as string, range as string);
+      if (!historicalData) {
+        return res.status(404).json({ message: "Historical data not available for this symbol" });
+      }
+      res.json(historicalData);
+    } catch (error) {
+      console.error("Historical data error:", error);
+      res.status(500).json({ message: "Failed to fetch historical data" });
+    }
+  });
+
   // Market data endpoint
   app.get("/api/market/indices", async (req, res) => {
     try {
