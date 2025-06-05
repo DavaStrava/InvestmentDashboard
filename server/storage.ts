@@ -91,4 +91,69 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+
+export class DatabaseStorage implements IStorage {
+  // Holdings
+  async getHoldings(): Promise<Holding[]> {
+    return await db.select().from(holdings);
+  }
+
+  async getHolding(id: number): Promise<Holding | undefined> {
+    const [holding] = await db.select().from(holdings).where(eq(holdings.id, id));
+    return holding || undefined;
+  }
+
+  async createHolding(insertHolding: InsertHolding): Promise<Holding> {
+    const [holding] = await db
+      .insert(holdings)
+      .values(insertHolding)
+      .returning();
+    return holding;
+  }
+
+  async updateHolding(id: number, updates: Partial<InsertHolding>): Promise<Holding | undefined> {
+    const [holding] = await db
+      .update(holdings)
+      .set(updates)
+      .where(eq(holdings.id, id))
+      .returning();
+    return holding || undefined;
+  }
+
+  async deleteHolding(id: number): Promise<boolean> {
+    const result = await db.delete(holdings).where(eq(holdings.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Watchlist
+  async getWatchlist(): Promise<WatchlistItem[]> {
+    return await db.select().from(watchlist);
+  }
+
+  async getWatchlistItem(id: number): Promise<WatchlistItem | undefined> {
+    const [item] = await db.select().from(watchlist).where(eq(watchlist.id, id));
+    return item || undefined;
+  }
+
+  async createWatchlistItem(insertItem: InsertWatchlistItem): Promise<WatchlistItem> {
+    const [item] = await db
+      .insert(watchlist)
+      .values(insertItem)
+      .returning();
+    return item;
+  }
+
+  async deleteWatchlistItem(id: number): Promise<boolean> {
+    const result = await db.delete(watchlist).where(eq(watchlist.id, id));
+    return result.rowCount > 0;
+  }
+
+  async isSymbolInWatchlist(symbol: string): Promise<boolean> {
+    const [item] = await db.select().from(watchlist).where(eq(watchlist.symbol, symbol));
+    return !!item;
+  }
+}
+
+export const storage = new DatabaseStorage();
