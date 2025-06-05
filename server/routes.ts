@@ -657,6 +657,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return null;
   }
 
+  // AI prediction endpoint
+  app.get("/api/stocks/:symbol/prediction", async (req, res) => {
+    const { symbol } = req.params;
+    
+    try {
+      // Get current quote
+      const quote = await fetchStockQuote(symbol);
+      if (!quote) {
+        return res.status(404).json({ message: "Stock data not available" });
+      }
+
+      // Get historical data for analysis
+      const historicalData = await fetchHistoricalData(symbol, "1D");
+      if (!historicalData || historicalData.length === 0) {
+        return res.status(404).json({ message: "Historical data required for prediction" });
+      }
+
+      // Generate AI prediction
+      const { generateStockPrediction } = await import("./openai");
+      const prediction = await generateStockPrediction(
+        symbol,
+        quote.price,
+        historicalData
+      );
+
+      res.json(prediction);
+    } catch (error) {
+      console.error("Prediction error:", error);
+      res.status(500).json({ message: "Failed to generate prediction" });
+    }
+  });
+
   // Historical price data endpoint
   app.get("/api/stocks/:symbol/history", async (req, res) => {
     const { symbol } = req.params;

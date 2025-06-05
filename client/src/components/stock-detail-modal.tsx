@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatPercent, formatMarketCap, formatNumber, getChangeColor } from "@/lib/utils";
 import PriceChart from "./price-chart";
+import AIPrediction from "./ai-prediction";
 import { X } from "lucide-react";
 
 interface StockDetailModalProps {
@@ -109,8 +110,13 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
               </div>
             </DialogHeader>
 
-            <div>
-              <PriceChart symbol={symbol} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <PriceChart symbol={symbol} />
+              </div>
+              <div>
+                <AIPrediction symbol={symbol} />
+              </div>
             </div>
 
             <div className="border-t pt-6">
