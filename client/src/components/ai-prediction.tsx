@@ -29,6 +29,10 @@ interface TechnicalAnalysis {
   resistance: number;
   rsi: string;
   recommendation: string;
+  sma20: number;
+  sma50: number;
+  volatility: number;
+  momentum: number;
 }
 
 interface StockPrediction {
@@ -90,7 +94,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Brain className="w-5 h-5" />
-            <span>AI Prediction</span>
+            <span>Technical Analysis</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -112,7 +116,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Brain className="w-5 h-5" />
-            <span>AI Prediction</span>
+            <span>Technical Analysis</span>
           </div>
           {!prediction && (
             <Button 
@@ -136,15 +140,31 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
           </div>
         ) : prediction ? (
           <div className="space-y-6">
-            {/* Current Analysis */}
+            {/* Technical Indicators */}
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-600">Current Analysis</span>
+                <span className="text-sm font-medium text-gray-600">Technical Indicators</span>
                 <Badge variant="outline" className={getTrendColor(prediction.technicalAnalysis.trend)}>
                   {prediction.technicalAnalysis.trend}
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">RSI (14):</span>
+                  <span className="ml-2 font-medium">{prediction.technicalAnalysis.rsi}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Volatility:</span>
+                  <span className="ml-2 font-medium">{formatPercent(prediction.technicalAnalysis.volatility)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">SMA 20:</span>
+                  <span className="ml-2 font-medium">{formatCurrency(prediction.technicalAnalysis.sma20)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">SMA 50:</span>
+                  <span className="ml-2 font-medium">{formatCurrency(prediction.technicalAnalysis.sma50)}</span>
+                </div>
                 <div>
                   <span className="text-gray-500">Support:</span>
                   <span className="ml-2 font-medium">{formatCurrency(prediction.technicalAnalysis.support)}</span>
@@ -154,8 +174,8 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
                   <span className="ml-2 font-medium">{formatCurrency(prediction.technicalAnalysis.resistance)}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">RSI:</span>
-                  <span className="ml-2 font-medium">{prediction.technicalAnalysis.rsi}</span>
+                  <span className="text-gray-500">Momentum:</span>
+                  <span className="ml-2 font-medium">{formatPercent(prediction.technicalAnalysis.momentum)}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Recommendation:</span>
