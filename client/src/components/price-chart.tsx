@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ReferenceLine } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface PriceChartProps {
@@ -31,7 +31,19 @@ export default function PriceChart({ symbol }: PriceChartProps) {
     if (name === "price") {
       return [`$${value.toFixed(2)}`, "Price"];
     }
+    if (name === "volume") {
+      return [value.toLocaleString(), "Volume"];
+    }
     return [value, name];
+  };
+
+  const formatVolumeNumber = (value: number) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`;
+    }
+    return value.toString();
   };
 
   if (error) {
@@ -83,7 +95,7 @@ export default function PriceChart({ symbol }: PriceChartProps) {
         </div>
       </div>
 
-      <div className="h-80 bg-gray-50 rounded-lg p-4">
+      <div className="bg-gray-50 rounded-lg p-4">
         {isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-4 w-full" />
@@ -92,44 +104,91 @@ export default function PriceChart({ symbol }: PriceChartProps) {
             <Skeleton className="h-32 w-full" />
           </div>
         ) : chartData && chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-              <XAxis 
-                dataKey="time" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: "#6B7280" }}
-              />
-              <YAxis 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: "#6B7280" }}
-                domain={["dataMin - 2", "dataMax + 2"]}
-                tickFormatter={(value) => `$${value.toFixed(0)}`}
-              />
-              <Tooltip 
-                formatter={formatTooltip}
-                labelStyle={{ color: "#374151" }}
-                contentStyle={{
-                  backgroundColor: "white",
-                  border: "1px solid #E5E7EB",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="price"
-                stroke="hsl(207 90% 54%)"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: "hsl(207 90% 54%)" }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="space-y-4">
+            {/* Price Chart */}
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+                  <XAxis 
+                    dataKey="time" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: "#6B7280" }}
+                  />
+                  <YAxis 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: "#6B7280" }}
+                    domain={["dataMin - 2", "dataMax + 2"]}
+                    tickFormatter={(value) => `$${value.toFixed(0)}`}
+                  />
+                  <Tooltip 
+                    formatter={formatTooltip}
+                    labelStyle={{ color: "#374151" }}
+                    contentStyle={{
+                      backgroundColor: "white",
+                      border: "1px solid #E5E7EB",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="price"
+                    stroke="hsl(207 90% 54%)"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, fill: "hsl(207 90% 54%)" }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Volume Chart - only show if volume data is available */}
+            {chartData.some((d: any) => d.volume) && (
+              <div className="h-32">
+                <div className="mb-2">
+                  <h4 className="text-sm font-medium text-gray-700">Volume</h4>
+                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+                    <XAxis 
+                      dataKey="time" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#6B7280" }}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#6B7280" }}
+                      tickFormatter={formatVolumeNumber}
+                    />
+                    <Tooltip 
+                      formatter={formatTooltip}
+                      labelStyle={{ color: "#374151" }}
+                      contentStyle={{
+                        backgroundColor: "white",
+                        border: "1px solid #E5E7EB",
+                        borderRadius: "8px",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      }}
+                    />
+                    <Bar
+                      dataKey="volume"
+                      fill="hsl(207 90% 54%)"
+                      opacity={0.7}
+                      radius={[1, 1, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
         ) : (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center h-64">
             <p className="text-gray-500">No chart data available for this time range</p>
           </div>
         )}
