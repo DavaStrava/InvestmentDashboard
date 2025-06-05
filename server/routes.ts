@@ -674,9 +674,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Historical data required for prediction" });
       }
 
-      // Generate AI prediction
-      const { generateStockPrediction } = await import("./openai");
-      const prediction = await generateStockPrediction(
+      // Generate technical analysis prediction
+      const { generateTechnicalPrediction } = await import("./technical-analysis");
+      const prediction = generateTechnicalPrediction(
         symbol,
         quote.price,
         historicalData
