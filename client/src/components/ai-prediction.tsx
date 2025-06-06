@@ -90,7 +90,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Brain className="w-5 h-5" />
-            <span>Technical Analysis</span>
+            <span>AI Powered Technical Analysis</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -112,7 +112,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Brain className="w-5 h-5" />
-            <span>Technical Analysis</span>
+            <span>AI Powered Technical Analysis</span>
           </div>
           {!prediction && (
             <Button 
