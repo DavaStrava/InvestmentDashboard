@@ -34,62 +34,72 @@ export async function generateStockPrediction(
   marketData?: any
 ): Promise<StockPrediction> {
   try {
-    const prompt = `
-Below are exactly ${historicalData.length} five-minute data points for ${symbol} with current price $${currentPrice}.
-
-Historical Price Data:
-${historicalData.map(d => `{"time": "${d.time}", "price": ${d.price}, "volume": ${d.volume || 0}}`).join(',\n')}
-
-Please output exactly this JSON schema:
-{
-  "predictions": [
-    {
-      "timeframe": "1 day",
-      "predictedPrice": number,
-      "confidence": integer 40-80,
-      "direction": "up"|"down"|"sideways",
-      "reasoning": string,
-      "confidenceInterval": {"low": number, "high": number}
-    },
-    {
-      "timeframe": "1 week", 
-      "predictedPrice": number,
-      "confidence": integer 35-75,
-      "direction": "up"|"down"|"sideways",
-      "reasoning": string,
-      "confidenceInterval": {"low": number, "high": number}
-    },
-    {
-      "timeframe": "1 month",
-      "predictedPrice": number,
-      "confidence": integer 30-70,
-      "direction": "up"|"down"|"sideways",
-      "reasoning": string,
-      "confidenceInterval": {"low": number, "high": number}
+    // Pre-compute basic technical indicators
+    const prices = historicalData.map(d => d.price);
+    const volumes = historicalData.map(d => d.volume || 0);
+    
+    // Calculate SMA20 if enough data
+    const sma20 = prices.length >= 20 ? 
+      prices.slice(-20).reduce((a, b) => a + b, 0) / 20 : null;
+    
+    // Calculate simple RSI approximation
+    const gains = [];
+    const losses = [];
+    for (let i = 1; i < Math.min(prices.length, 15); i++) {
+      const change = prices[i] - prices[i-1];
+      if (change > 0) gains.push(change);
+      else losses.push(Math.abs(change));
     }
-  ],
-  "technicalAnalysis": {
-    "trend": "bullish"|"bearish"|"neutral",
-    "support": number,
-    "resistance": number,
-    "rsi": "overbought"|"oversold"|"neutral",
-    "recommendation": "buy"|"sell"|"hold"
-  }
+    const avgGain = gains.length > 0 ? gains.reduce((a, b) => a + b, 0) / gains.length : 0;
+    const avgLoss = losses.length > 0 ? losses.reduce((a, b) => a + b, 0) / losses.length : 0;
+    const rsi = avgLoss > 0 ? 100 - (100 / (1 + (avgGain / avgLoss))) : 50;
+    
+    // Find support and resistance levels
+    const recentPrices = prices.slice(-20);
+    const support = Math.min(...recentPrices);
+    const resistance = Math.max(...recentPrices);
+    
+    // Calculate basic regression slope
+    const n = Math.min(prices.length, 10);
+    const recentData = prices.slice(-n);
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (let i = 0; i < n; i++) {
+      sumX += i;
+      sumY += recentData[i];
+      sumXY += i * recentData[i];
+      sumXX += i * i;
+    }
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    
+    const prompt = `
+Current Stock: ${symbol}
+Current Price: $${currentPrice}
+Data Points: ${historicalData.length} five-minute intervals
+
+Pre-computed indicators:
+• SMA_20: ${sma20 ? sma20.toFixed(2) : 'insufficient data'}
+• RSI_14: ${rsi.toFixed(1)}
+• Recent Support: $${support.toFixed(2)}
+• Recent Resistance: $${resistance.toFixed(2)}
+• Price Slope: ${slope.toFixed(4)} (recent trend)
+• Price Range: $${Math.min(...prices).toFixed(2)} - $${Math.max(...prices).toFixed(2)}
+
+Please provide exactly this output:
+{
+  "predictions": {
+    "1d": {"point": number, "low": number, "high": number, "confidence": integer},
+    "1w": {"point": number, "low": number, "high": number, "confidence": integer},
+    "1m": {"point": number, "low": number, "high": number, "confidence": integer}
+  },
+  "technical": {
+    "trend": "up" | "down" | "sideways",
+    "support_levels": [number],
+    "resistance_levels": [number]
+  },
+  "recommendation": "buy" | "sell" | "hold"
 }
 
-Use these definitions:
-• 20-period SMA = average of last 20 closing prices
-• 14-period RSI = 100 - (100 / (1 + (avg_gain/avg_loss))) over last 14 closes
-• Trend is "bullish" if 20-period SMA is rising over last 4 intervals by ≥$0.10; "bearish" if falling similarly; otherwise "neutral"
-• Support = local minima where price rebounded at least twice within ±0.5%
-• Resistance = local maxima meeting same ±0.5% rebound criteria
-• For predictions: extrapolate from current price using observed momentum and volatility
-• Base predicted prices on recent price movements with realistic percentage changes
-• Confidence should reflect market uncertainty: 50-75% for stable patterns, 40-60% for volatile periods
-• Support/resistance levels should be approximate ranges based on recent highs/lows
-• Use the current price of $${currentPrice} as baseline for all predictions
-
-Generate practical price targets and confidence levels based on the market data provided.
+Use common technical analysis conventions. If you must estimate a value, include "note":"estimated" for that field. Base predictions on the current price of $${currentPrice} and provided indicators.
 `;
 
     const requestPayload = {
@@ -97,7 +107,7 @@ Generate practical price targets and confidence levels based on the market data 
       messages: [
         {
           role: "system",
-          content: "You are a professional financial analyst with expertise in technical analysis and stock prediction. Analyze the provided market data to generate realistic predictions. Base your analysis on observable patterns in the data without fabricating specific technical indicators when insufficient data exists. Provide reasonable price predictions with moderate confidence levels. Always respond with valid JSON only."
+          content: "You are a professional financial analyst. Use only the data and indicators provided or computed. If you must estimate a value (e.g., support level), include a \"note\":\"estimated\" for that field. Always respond in valid JSON format."
         },
         {
           role: "user",
@@ -121,11 +131,71 @@ Generate practical price targets and confidence levels based on the market data 
     console.log("=== PARSED ANALYSIS ===");
     console.log(JSON.stringify(analysis, null, 2));
 
+    // Handle both old and new JSON formats
+    let convertedPredictions = [];
+    let convertedTechnical = {};
+
+    // Check if using new simplified format
+    if (analysis.predictions && analysis.predictions["1d"]) {
+      // New format with 1d, 1w, 1m keys
+      if (analysis.predictions["1d"]) {
+        convertedPredictions.push({
+          timeframe: "1 day",
+          predictedPrice: analysis.predictions["1d"].point,
+          confidence: analysis.predictions["1d"].confidence,
+          direction: analysis.technical?.trend === "up" ? "up" : analysis.technical?.trend === "down" ? "down" : "sideways",
+          reasoning: `Based on pre-computed indicators and price patterns`,
+          confidenceInterval: {
+            low: analysis.predictions["1d"].low,
+            high: analysis.predictions["1d"].high
+          }
+        });
+      }
+      if (analysis.predictions["1w"]) {
+        convertedPredictions.push({
+          timeframe: "1 week",
+          predictedPrice: analysis.predictions["1w"].point,
+          confidence: analysis.predictions["1w"].confidence,
+          direction: analysis.technical?.trend === "up" ? "up" : analysis.technical?.trend === "down" ? "down" : "sideways",
+          reasoning: `Based on weekly trend analysis and support/resistance levels`,
+          confidenceInterval: {
+            low: analysis.predictions["1w"].low,
+            high: analysis.predictions["1w"].high
+          }
+        });
+      }
+      if (analysis.predictions["1m"]) {
+        convertedPredictions.push({
+          timeframe: "1 month",
+          predictedPrice: analysis.predictions["1m"].point,
+          confidence: analysis.predictions["1m"].confidence,
+          direction: analysis.technical?.trend === "up" ? "up" : analysis.technical?.trend === "down" ? "down" : "sideways",
+          reasoning: `Based on longer-term technical indicators and market patterns`,
+          confidenceInterval: {
+            low: analysis.predictions["1m"].low,
+            high: analysis.predictions["1m"].high
+          }
+        });
+      }
+
+      convertedTechnical = {
+        trend: analysis.technical?.trend === "up" ? "bullish" : analysis.technical?.trend === "down" ? "bearish" : "neutral",
+        support: analysis.technical?.support_levels?.[0] || 0,
+        resistance: analysis.technical?.resistance_levels?.[0] || 0,
+        rsi: rsi > 70 ? "overbought" : rsi < 30 ? "oversold" : "neutral",
+        recommendation: analysis.recommendation || "hold"
+      };
+    } else if (Array.isArray(analysis.predictions)) {
+      // Old format with array of predictions
+      convertedPredictions = analysis.predictions;
+      convertedTechnical = analysis.technicalAnalysis || {};
+    }
+
     return {
       symbol,
       currentPrice,
-      predictions: analysis.predictions || [],
-      technicalAnalysis: analysis.technicalAnalysis || {},
+      predictions: convertedPredictions,
+      technicalAnalysis: convertedTechnical,
       generatedAt: new Date().toISOString(),
     };
   } catch (error) {
