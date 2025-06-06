@@ -70,7 +70,7 @@ Return valid JSON only with this structure:
 }
 `;
 
-    const response = await openai.chat.completions.create({
+    const requestPayload = {
       model: "gpt-4o",
       messages: [
         {
@@ -84,9 +84,20 @@ Return valid JSON only with this structure:
       ],
       response_format: { type: "json_object" },
       temperature: 0.3, // Lower temperature for more consistent financial analysis
-    });
+    };
+
+    console.log("=== OPENAI REQUEST ===");
+    console.log(JSON.stringify(requestPayload, null, 2));
+
+    const response = await openai.chat.completions.create(requestPayload);
+
+    console.log("=== OPENAI RESPONSE ===");
+    console.log(JSON.stringify(response, null, 2));
 
     const analysis = JSON.parse(response.choices[0].message.content || "{}");
+
+    console.log("=== PARSED ANALYSIS ===");
+    console.log(JSON.stringify(analysis, null, 2));
 
     return {
       symbol,
