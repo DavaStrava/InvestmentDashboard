@@ -133,6 +133,22 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
           </div>
         ) : prediction ? (
           <div className="space-y-6">
+            {/* Data Limitations Warning - Dynamic */}
+            {prediction.dataLimitations?.longerTermPredictionsUncertain && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                <div className="flex items-start space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="text-amber-800 font-medium mb-1">Limited Historical Data</p>
+                    <p className="text-amber-700">
+                      1-week and 1-month predictions are extrapolated from intraday data only. 
+                      These are AI estimates, not based on authentic weekly/monthly historical data.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Technical Analysis Overview */}
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
@@ -170,6 +186,13 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
                     <div className="flex items-center space-x-2">
                       {getDirectionIcon(pred.direction)}
                       <span className="font-medium">{pred.timeframe}</span>
+                      {/* Individual prediction reliability indicator */}
+                      {prediction.dataLimitations?.longerTermPredictionsUncertain && 
+                       (pred.timeframe === "1 week" || pred.timeframe === "1 month") && (
+                        <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                          Estimated
+                        </Badge>
+                      )}
                     </div>
                     <Badge className={getConfidenceColor(pred.confidence)}>
                       {pred.confidence}% confidence
