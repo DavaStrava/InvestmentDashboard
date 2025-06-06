@@ -35,39 +35,58 @@ export async function generateStockPrediction(
 ): Promise<StockPrediction> {
   try {
     const prompt = `
-Analyze the stock ${symbol} with current price $${currentPrice} and provide comprehensive predictions.
+Below are exactly ${historicalData.length} five-minute data points for ${symbol} with current price $${currentPrice}.
 
-Historical Price Data (last ${historicalData.length} data points):
-${historicalData.slice(-20).map(d => `Time: ${d.time}, Price: $${d.price}, Volume: ${d.volume || 'N/A'}`).join('\n')}
+Historical Price Data:
+${historicalData.map(d => `{"time": "${d.time}", "price": ${d.price}, "volume": ${d.volume || 0}}`).join(',\n')}
 
-Please provide a detailed analysis in JSON format with:
-1. Price predictions for 1 day, 1 week, 1 month timeframes
-2. Confidence levels (0-100) for each prediction
-3. Price confidence intervals (low/high estimates)
-4. Technical analysis including trend, support/resistance levels
-5. Clear reasoning for each prediction
-6. Overall recommendation
-
-Return valid JSON only with this structure:
+Please output exactly this JSON schema (no additional keys):
 {
   "predictions": [
     {
       "timeframe": "1 day",
-      "predictedPrice": number,
-      "confidence": number (0-100),
-      "direction": "up|down|sideways",
-      "reasoning": "detailed explanation",
-      "confidenceInterval": {"low": number, "high": number}
+      "predictedPrice": number or null,
+      "confidence": integer 0-100,
+      "direction": "up"|"down"|"sideways"|null,
+      "reasoning": string,
+      "confidenceInterval": {"low": number or null, "high": number or null}
+    },
+    {
+      "timeframe": "1 week", 
+      "predictedPrice": number or null,
+      "confidence": integer 0-100,
+      "direction": "up"|"down"|"sideways"|null,
+      "reasoning": string,
+      "confidenceInterval": {"low": number or null, "high": number or null}
+    },
+    {
+      "timeframe": "1 month",
+      "predictedPrice": number or null,
+      "confidence": integer 0-100,
+      "direction": "up"|"down"|"sideways"|null,
+      "reasoning": string,
+      "confidenceInterval": {"low": number or null, "high": number or null}
     }
   ],
   "technicalAnalysis": {
-    "trend": "bullish|bearish|neutral",
-    "support": number,
-    "resistance": number,
-    "rsi": "overbought|oversold|neutral",
-    "recommendation": "buy|sell|hold"
+    "trend": "bullish"|"bearish"|"neutral"|null,
+    "support": number or null,
+    "resistance": number or null,
+    "rsi": "overbought"|"oversold"|"neutral"|null,
+    "recommendation": "buy"|"sell"|"hold"|null
   }
 }
+
+Use these definitions:
+• 20-period SMA = average of last 20 closing prices
+• 14-period RSI = 100 - (100 / (1 + (avg_gain/avg_loss))) over last 14 closes
+• Trend is "bullish" if 20-period SMA is rising over last 4 intervals by ≥$0.10; "bearish" if falling similarly; otherwise "neutral"
+• Support = local minima where price rebounded at least twice within ±0.5%
+• Resistance = local maxima meeting same ±0.5% rebound criteria
+• For predictions: use linear regression on available data. If R² < 0.2, set prediction to null and confidence to 0
+• Confidence = integer 0-100 proportional to data quality and trend strength
+
+If you cannot compute a field exactly from the provided data, output null and set confidence to 0. Use only the provided ${historicalData.length} data points - do not fabricate any values.
 `;
 
     const requestPayload = {
@@ -75,7 +94,7 @@ Return valid JSON only with this structure:
       messages: [
         {
           role: "system",
-          content: "You are a professional financial analyst with expertise in technical analysis and stock prediction. Provide accurate, data-driven predictions with realistic confidence levels. Always respond with valid JSON only."
+          content: "You are a professional financial analyst with expertise in technical analysis and stock prediction. Rely strictly on the data provided. If you cannot derive a metric from the provided data points, return null for that field and include a brief reason. Do not fabricate any numbers, prices, dates, or volumes. Never invent price levels or technical indicators that aren't explicitly calculable from the given data. Always respond with valid JSON only."
         },
         {
           role: "user",
@@ -83,7 +102,7 @@ Return valid JSON only with this structure:
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.3, // Lower temperature for more consistent financial analysis
+      temperature: 0.1, // Minimal temperature to reduce hallucinations
     };
 
     console.log("=== OPENAI REQUEST ===");
