@@ -142,7 +142,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
                     <p className="text-amber-800 font-medium mb-1">Limited Historical Data</p>
                     <p className="text-amber-700">
                       1-week and 1-month predictions are extrapolated from intraday data only. 
-                      These are AI estimates, not based on authentic weekly/monthly historical data.
+                      These are AI projections, not based on authentic weekly/monthly historical data.
                     </p>
                   </div>
                 </div>
@@ -189,8 +189,8 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
                       {/* Individual prediction reliability indicator */}
                       {prediction.dataLimitations?.longerTermPredictionsUncertain && 
                        (pred.timeframe === "1 week" || pred.timeframe === "1 month") && (
-                        <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-                          Estimated
+                        <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs">
+                          Extrapolated - not based on historical data
                         </Badge>
                       )}
                     </div>
