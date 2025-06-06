@@ -25,6 +25,11 @@ export interface StockPrediction {
     recommendation: string;
   };
   generatedAt: string;
+  dataLimitations?: {
+    hasLimitedHistoricalData: boolean;
+    isIntradayOnly: boolean;
+    longerTermPredictionsUncertain: boolean;
+  };
 }
 
 export async function generateStockPrediction(
@@ -188,8 +193,21 @@ Use common technical analysis conventions. If you must estimate a value, include
     } else if (Array.isArray(analysis.predictions)) {
       // Old format with array of predictions
       convertedPredictions = analysis.predictions;
-      convertedTechnical = analysis.technicalAnalysis || {};
+      convertedTechnical = analysis.technicalAnalysis || {
+        trend: "neutral" as const,
+        support: 0,
+        resistance: 0,
+        rsi: "neutral",
+        recommendation: "hold"
+      };
     }
+
+    // Detect data limitations for dynamic warnings
+    const dataLimitations = {
+      hasLimitedHistoricalData: historicalData.length < 100, // Less than full day
+      isIntradayOnly: true, // Currently only using 1-day intraday data
+      longerTermPredictionsUncertain: historicalData.length < 200 // Insufficient for weekly/monthly
+    };
 
     return {
       symbol,
@@ -197,6 +215,7 @@ Use common technical analysis conventions. If you must estimate a value, include
       predictions: convertedPredictions,
       technicalAnalysis: convertedTechnical,
       generatedAt: new Date().toISOString(),
+      dataLimitations
     };
   } catch (error) {
     console.error("OpenAI prediction error:", error);

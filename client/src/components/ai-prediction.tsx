@@ -37,6 +37,11 @@ interface StockPrediction {
   predictions: Prediction[];
   technicalAnalysis: TechnicalAnalysis;
   generatedAt: string;
+  dataLimitations?: {
+    hasLimitedHistoricalData: boolean;
+    isIntradayOnly: boolean;
+    longerTermPredictionsUncertain: boolean;
+  };
 }
 
 export default function AIPrediction({ symbol }: AIPredictionProps) {
