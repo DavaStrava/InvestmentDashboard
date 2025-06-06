@@ -114,15 +114,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
             <Brain className="w-5 h-5" />
             <span>AI Powered Technical Analysis</span>
           </div>
-          {!prediction && (
-            <Button 
-              onClick={() => refetch()} 
-              size="sm"
-              disabled={isLoading}
-            >
-              Generate
-            </Button>
-          )}
+
         </CardTitle>
       </CardHeader>
 
