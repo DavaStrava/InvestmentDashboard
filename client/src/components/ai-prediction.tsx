@@ -29,10 +29,6 @@ interface TechnicalAnalysis {
   resistance: number;
   rsi: string;
   recommendation: string;
-  sma20: number;
-  sma50: number;
-  volatility: number;
-  momentum: number;
 }
 
 interface StockPrediction {
@@ -140,30 +136,22 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
           </div>
         ) : prediction ? (
           <div className="space-y-6">
-            {/* Technical Indicators */}
+            {/* Technical Analysis Overview */}
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-600">Technical Indicators</span>
+                <span className="text-sm font-medium text-gray-600">Technical Analysis</span>
                 <Badge variant="outline" className={getTrendColor(prediction.technicalAnalysis.trend)}>
                   {prediction.technicalAnalysis.trend}
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500">RSI (14):</span>
-                  <span className="ml-2 font-medium">{prediction.technicalAnalysis.rsi}</span>
+                  <span className="text-gray-500">RSI:</span>
+                  <span className="ml-2 font-medium capitalize">{prediction.technicalAnalysis.rsi}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">Volatility:</span>
-                  <span className="ml-2 font-medium">{formatPercent(prediction.technicalAnalysis.volatility)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">SMA 20:</span>
-                  <span className="ml-2 font-medium">{formatCurrency(prediction.technicalAnalysis.sma20)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">SMA 50:</span>
-                  <span className="ml-2 font-medium">{formatCurrency(prediction.technicalAnalysis.sma50)}</span>
+                  <span className="text-gray-500">Recommendation:</span>
+                  <span className="ml-2 font-medium capitalize">{prediction.technicalAnalysis.recommendation}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Support:</span>
@@ -172,14 +160,6 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
                 <div>
                   <span className="text-gray-500">Resistance:</span>
                   <span className="ml-2 font-medium">{formatCurrency(prediction.technicalAnalysis.resistance)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Momentum:</span>
-                  <span className="ml-2 font-medium">{formatPercent(prediction.technicalAnalysis.momentum)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Recommendation:</span>
-                  <span className="ml-2 font-medium capitalize">{prediction.technicalAnalysis.recommendation}</span>
                 </div>
               </div>
             </div>
