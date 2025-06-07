@@ -250,6 +250,71 @@ async function searchStocks(query: string): Promise<any[]> {
   return [];
 }
 
+// Data quality filters to clean market data
+function applyDataQualityFilters(data: any[], range: string): any[] {
+  if (!data || data.length === 0) return data;
+
+  let filtered = [...data];
+
+  // For intraday data, filter to market hours only (9:30 AM - 4:00 PM EST)
+  if (range === "1D") {
+    filtered = filtered.filter(point => {
+      const date = new Date(point.timestamp);
+      const hour = date.getHours();
+      const minute = date.getMinutes();
+      const timeInMinutes = hour * 60 + minute;
+      
+      // Market hours: 9:30 AM (570 minutes) to 4:00 PM (960 minutes) EST
+      return timeInMinutes >= 570 && timeInMinutes <= 960;
+    });
+  }
+
+  // Remove price outliers using statistical method
+  if (filtered.length > 5) {
+    const prices = filtered.map(p => p.price).filter(p => p > 0);
+    const mean = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+    const variance = prices.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / prices.length;
+    const stdDev = Math.sqrt(variance);
+    
+    // Remove data points more than 3 standard deviations from mean
+    const threshold = 3 * stdDev;
+    filtered = filtered.filter(point => {
+      const deviation = Math.abs(point.price - mean);
+      return deviation <= threshold;
+    });
+  }
+
+  // Remove impossible price movements (> 10% in 5 minutes for intraday)
+  if (range === "1D" && filtered.length > 1) {
+    const cleanedPoints = [filtered[0]];
+    
+    for (let i = 1; i < filtered.length; i++) {
+      const current = filtered[i];
+      const previous = filtered[i - 1];
+      
+      if (previous.price > 0) {
+        const changePercent = Math.abs((current.price - previous.price) / previous.price);
+        
+        // Skip points with > 10% change in 5 minutes (likely data errors)
+        if (changePercent <= 0.10) {
+          cleanedPoints.push(current);
+        } else {
+          console.log(`Data quality filter: Removed price spike from ${previous.price} to ${current.price} (${(changePercent * 100).toFixed(2)}% change)`);
+        }
+      } else {
+        cleanedPoints.push(current);
+      }
+    }
+    
+    filtered = cleanedPoints;
+  }
+
+  // Remove zero or negative prices
+  filtered = filtered.filter(point => point.price > 0);
+
+  return filtered;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Stock quote endpoint
   app.get("/api/stocks/:symbol/quote", async (req, res) => {
@@ -561,6 +626,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+
+
   // Fetch historical price data
   async function fetchHistoricalData(symbol: string, range: string): Promise<any> {
     // Try Finnhub first for historical data
@@ -599,7 +666,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const data = await response.json();
         
         if (data.s === "ok" && data.c && data.t) {
-          const chartData = data.t.map((timestamp: number, index: number) => ({
+          const rawData = data.t.map((timestamp: number, index: number) => ({
+            timestamp: timestamp * 1000,
             time: range === "1D" 
               ? new Date(timestamp * 1000).toLocaleTimeString("en-US", { 
                   hour: "numeric", 
@@ -617,7 +685,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             volume: data.v[index]
           }));
           
-          return chartData;
+          // Apply data quality filters
+          const cleanedData = applyDataQualityFilters(rawData, range);
+          return cleanedData;
         }
       } catch (error) {
         console.error("Finnhub historical data error:", error);
