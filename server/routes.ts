@@ -666,9 +666,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         const data = await response.json();
         
+        console.log(`[FINNHUB] API response for ${symbol}: status=${data.s}, points=${data.t?.length || 0}`);
+        
         if (data.s === "ok" && data.c && data.t) {
-          console.log(`[FINNHUB] Received ${data.t.length} data points for ${symbol} range ${range}`);
-          
           const rawData = data.t.map((timestamp: number, index: number) => ({
             timestamp: timestamp * 1000,
             time: range === "1D" 
@@ -688,74 +688,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
             volume: data.v[index]
           }));
           
-          // Apply data quality filters
-          console.log(`[FILTER] Starting data quality filtering with ${rawData.length} points`);
-          
-          // Filter market hours and remove bad data
-          let filtered = rawData;
-          
-          // For intraday data, filter to market hours only (9:30 AM - 4:00 PM EST)
-          if (range === "1D") {
-            const marketHoursData = filtered.filter(point => {
-              const date = new Date(point.timestamp);
-              const hour = date.getHours();
-              const minute = date.getMinutes();
-              const timeInMinutes = hour * 60 + minute;
+          // Apply basic data quality filter for the price spike issue
+          if (range === "1D" && rawData.length > 1) {
+            const filteredData = [];
+            let spikesRemoved = 0;
+            
+            for (let i = 0; i < rawData.length; i++) {
+              const current = rawData[i];
+              const previous = rawData[i - 1];
               
-              // Market hours: 9:30 AM (570 minutes) to 4:00 PM (960 minutes) EST
-              return timeInMinutes >= 570 && timeInMinutes <= 960;
-            });
-            
-            console.log(`[DEBUG] After market hours filter: ${marketHoursData.length} points`);
-            filtered = marketHoursData;
-          }
-          
-          // Remove price outliers using statistical method
-          if (filtered.length > 5) {
-            const prices = filtered.map(p => p.price).filter(p => p > 0);
-            const mean = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-            const variance = prices.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / prices.length;
-            const stdDev = Math.sqrt(variance);
-            
-            // Remove data points more than 3 standard deviations from mean
-            const threshold = 3 * stdDev;
-            const outlierFilteredData = filtered.filter(point => {
-              const deviation = Math.abs(point.price - mean);
-              return deviation <= threshold;
-            });
-            
-            console.log(`[DEBUG] After outlier filter: ${outlierFilteredData.length} points (removed ${filtered.length - outlierFilteredData.length} outliers)`);
-            filtered = outlierFilteredData;
-          }
-          
-          // Remove impossible price movements (> 10% in 5 minutes for intraday)
-          if (range === "1D" && filtered.length > 1) {
-            const cleanedPoints = [filtered[0]];
-            
-            for (let i = 1; i < filtered.length; i++) {
-              const current = filtered[i];
-              const previous = filtered[i - 1];
-              
-              if (previous.price > 0) {
+              if (i === 0 || !previous) {
+                filteredData.push(current);
+              } else if (previous.price > 0) {
                 const changePercent = Math.abs((current.price - previous.price) / previous.price);
                 
-                // Skip points with > 10% change in 5 minutes (likely data errors)
-                if (changePercent <= 0.10) {
-                  cleanedPoints.push(current);
+                // Remove obvious price spikes > 6% in 5 minutes
+                if (changePercent <= 0.06) {
+                  filteredData.push(current);
                 } else {
-                  console.log(`[DEBUG] Removed price spike from ${previous.price} to ${current.price} (${(changePercent * 100).toFixed(2)}% change)`);
+                  console.log(`[FILTER] Removed price spike: ${previous.price} -> ${current.price} (${(changePercent * 100).toFixed(1)}%)`);
+                  spikesRemoved++;
                 }
               } else {
-                cleanedPoints.push(current);
+                filteredData.push(current);
               }
             }
             
-            console.log(`[DEBUG] After price movement filter: ${cleanedPoints.length} points`);
-            filtered = cleanedPoints;
+            if (spikesRemoved > 0) {
+              console.log(`[FILTER] Data quality: removed ${spikesRemoved} price spikes from ${rawData.length} points`);
+            }
+            
+            return filteredData;
           }
           
-          console.log(`[DEBUG] Final filtered data: ${filtered.length} points`);
-          return filtered;
+          return rawData;
         }
       } catch (error) {
         console.error("Finnhub historical data error:", error);
