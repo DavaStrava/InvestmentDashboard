@@ -38,8 +38,8 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
 
   return (
     <Dialog open={!!symbol} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
-        <div className="p-6">
+      <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto p-0">
+        <div className="p-4">
           {isLoading ? (
             <div className="space-y-6">
               <DialogHeader>
@@ -113,11 +113,11 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
               </div>
             </DialogHeader>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="xl:col-span-1">
                 <PriceChart symbol={symbol} />
               </div>
-              <div>
+              <div className="xl:col-span-1">
                 <AIPrediction symbol={symbol} />
               </div>
             </div>

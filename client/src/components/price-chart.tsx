@@ -128,7 +128,7 @@ export default function PriceChart({ symbol }: PriceChartProps) {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
         {isLoading ? (
           <div className="space-y-4">
             <Skeleton className="h-4 w-full" />
@@ -137,11 +137,11 @@ export default function PriceChart({ symbol }: PriceChartProps) {
             <Skeleton className="h-64 w-full" />
           </div>
         ) : chartData && chartData.length > 0 ? (
-          <div className="space-y-6">
+          <div className="space-y-3">
             {/* Price Chart */}
-            <div className="h-[500px] bg-gray-50 rounded-lg p-6">
+            <div className="h-[700px] bg-gray-50 rounded-lg p-2">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 30, right: 40, left: 80, bottom: 80 }}>
+                <LineChart data={chartData} margin={{ top: 15, right: 15, left: 50, bottom: 40 }}>
                   <CartesianGrid strokeDasharray="2 2" stroke="rgba(0,0,0,0.08)" horizontal={true} vertical={false} />
                   <XAxis 
                     dataKey="time" 
@@ -189,12 +189,12 @@ export default function PriceChart({ symbol }: PriceChartProps) {
 
             {/* Volume Chart - only show if volume data is available */}
             {chartData.some((d: any) => d.volume) && (
-              <div className="h-[300px] bg-gray-50 rounded-lg p-6">
-                <div className="mb-4">
+              <div className="h-[400px] bg-gray-50 rounded-lg p-2">
+                <div className="mb-1">
                   <h4 className="text-sm font-medium text-gray-700">Trading Volume</h4>
                 </div>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 20, right: 40, left: 80, bottom: 60 }}>
+                  <BarChart data={chartData} margin={{ top: 10, right: 15, left: 50, bottom: 35 }}>
                     <CartesianGrid strokeDasharray="2 2" stroke="rgba(0,0,0,0.08)" horizontal={true} vertical={false} />
                     <XAxis 
                       dataKey="time" 
