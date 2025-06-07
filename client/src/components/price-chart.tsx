@@ -87,16 +87,31 @@ export default function PriceChart({ symbol }: PriceChartProps) {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Price Chart</h3>
-        <div className="flex space-x-2">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Price Chart</h3>
+          {chartData && chartData.length > 1 && (
+            <div className="flex items-center space-x-3 mt-1">
+              <span className="text-sm text-gray-600">
+                Range: ${Math.min(...chartData.map((d: any) => d.price)).toFixed(2)} - ${Math.max(...chartData.map((d: any) => d.price)).toFixed(2)}
+              </span>
+              <span className={`text-sm font-medium ${
+                chartData[chartData.length - 1].price >= chartData[0].price ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {chartData[chartData.length - 1].price >= chartData[0].price ? '↗' : '↘'} 
+                {((chartData[chartData.length - 1].price - chartData[0].price) / chartData[0].price * 100).toFixed(2)}%
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="flex space-x-1">
           {(["1D", "1W", "1M", "3M", "1Y"] as TimeRange[]).map((range) => (
             <Button
               key={range}
               variant={timeRange === range ? "default" : "outline"}
               size="sm"
               onClick={() => setTimeRange(range)}
-              className={timeRange === range ? "bg-primary text-white" : ""}
+              className={`min-w-12 ${timeRange === range ? "bg-blue-600 text-white hover:bg-blue-700" : "hover:bg-gray-100"}`}
             >
               {range}
             </Button>
@@ -104,21 +119,21 @@ export default function PriceChart({ symbol }: PriceChartProps) {
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-64 w-full" />
           </div>
         ) : chartData && chartData.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Price Chart */}
-            <div className="h-80">
+            <div className="h-96 bg-gray-50 rounded-lg p-4">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="2 2" stroke="rgba(0,0,0,0.08)" horizontal={true} vertical={false} />
                   <XAxis 
                     dataKey="time" 
                     axisLine={false}
@@ -158,10 +173,13 @@ export default function PriceChart({ symbol }: PriceChartProps) {
                   <Line
                     type="monotone"
                     dataKey="price"
-                    stroke="hsl(207 90% 54%)"
-                    strokeWidth={2}
+                    stroke={chartData && chartData.length > 1 ? 
+                      (chartData[chartData.length - 1].price >= chartData[0].price ? "#10B981" : "#EF4444") : 
+                      "hsl(207 90% 54%)"
+                    }
+                    strokeWidth={2.5}
                     dot={false}
-                    activeDot={{ r: 4, fill: "hsl(207 90% 54%)" }}
+                    activeDot={{ r: 5, fill: "white", stroke: "hsl(207 90% 54%)", strokeWidth: 2 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -169,20 +187,20 @@ export default function PriceChart({ symbol }: PriceChartProps) {
 
             {/* Volume Chart - only show if volume data is available */}
             {chartData.some((d: any) => d.volume) && (
-              <div className="h-40">
-                <div className="mb-2">
-                  <h4 className="text-sm font-medium text-gray-700">Volume</h4>
+              <div className="h-48 bg-gray-50 rounded-lg p-4">
+                <div className="mb-3">
+                  <h4 className="text-sm font-medium text-gray-700">Trading Volume</h4>
                 </div>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+                  <BarChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="2 2" stroke="rgba(0,0,0,0.08)" horizontal={true} vertical={false} />
                     <XAxis 
                       dataKey="time" 
                       axisLine={false}
                       tickLine={false}
                       tick={{ fontSize: 11, fill: "#6B7280" }}
-                      interval="preserveStartEnd"
-                      minTickGap={30}
+                      interval={Math.max(1, Math.floor(chartData.length / 6))}
+                      tickFormatter={formatXAxisTick}
                     />
                     <YAxis 
                       axisLine={false}
@@ -203,9 +221,10 @@ export default function PriceChart({ symbol }: PriceChartProps) {
                     />
                     <Bar
                       dataKey="volume"
-                      fill="hsl(207 90% 54%)"
-                      opacity={0.7}
-                      radius={[1, 1, 0, 0]}
+                      fill="rgba(99, 102, 241, 0.5)"
+                      stroke="rgba(99, 102, 241, 0.7)"
+                      strokeWidth={0}
+                      radius={[2, 2, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
