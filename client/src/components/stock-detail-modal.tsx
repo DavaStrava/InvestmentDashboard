@@ -19,6 +19,8 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
     enabled: !!symbol,
   });
 
+  const stockQuote = quote as any;
+
   const getStockInitials = (symbol: string) => {
     return symbol.slice(0, 4).toUpperCase();
   };
@@ -59,7 +61,7 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
               </div>
               <Skeleton className="h-80 w-full" />
             </div>
-          ) : !quote ? (
+          ) : !stockQuote ? (
             <div className="text-center py-12">
               <p className="text-gray-500">Failed to load stock data</p>
               <Button onClick={onClose} className="mt-4">Close</Button>
@@ -73,8 +75,8 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
                       <span className="font-bold text-lg">{getStockInitials(symbol)}</span>
                     </div>
                     <div>
-                      <DialogTitle className="text-2xl font-bold">{(quote as any).companyName}</DialogTitle>
-                      <p className="text-gray-500">NASDAQ: {(quote as any).symbol}</p>
+                      <DialogTitle className="text-2xl font-bold">{stockQuote.companyName}</DialogTitle>
+                      <p className="text-gray-500">NASDAQ: {stockQuote.symbol}</p>
                     </div>
                   </div>
                   <Button variant="ghost" size="icon" onClick={onClose}>
@@ -85,27 +87,27 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
               <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Current Price</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency((quote as any).price)}</p>
-                  <p className={`text-sm ${getChangeColor((quote as any).change)}`}>
-                    {(quote as any).change >= 0 ? "+" : ""}{formatCurrency((quote as any).change)} ({formatPercent((quote as any).changePercent)})
+                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(stockQuote.price)}</p>
+                  <p className={`text-sm ${getChangeColor(stockQuote.change)}`}>
+                    {stockQuote.change >= 0 ? "+" : ""}{formatCurrency(stockQuote.change)} ({formatPercent(stockQuote.changePercent)})
                   </p>
                 </div>
-                {(quote as any).marketCap && (
+                {stockQuote.marketCap && (
                   <div>
                     <p className="text-sm text-gray-500">Market Cap</p>
-                    <p className="text-lg font-semibold text-gray-900">{formatMarketCap((quote as any).marketCap)}</p>
+                    <p className="text-lg font-semibold text-gray-900">{formatMarketCap(stockQuote.marketCap)}</p>
                   </div>
                 )}
-                {(quote as any).peRatio && (
+                {stockQuote.peRatio && (
                   <div>
                     <p className="text-sm text-gray-500">P/E Ratio</p>
-                    <p className="text-lg font-semibold text-gray-900">{formatNumber((quote as any).peRatio)}</p>
+                    <p className="text-lg font-semibold text-gray-900">{formatNumber(stockQuote.peRatio)}</p>
                   </div>
                 )}
-                {(quote as any).earningsDate && (
+                {stockQuote.earningsDate && (
                   <div>
                     <p className="text-sm text-gray-500">Next Earnings</p>
-                    <p className="text-lg font-semibold text-gray-900">{(quote as any).earningsDate}</p>
+                    <p className="text-lg font-semibold text-gray-900">{stockQuote.earningsDate}</p>
                   </div>
                 )}
               </div>
@@ -123,50 +125,50 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Metrics</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {quote.high52Week && (
+                {stockQuote.high52Week && (
                   <div>
                     <p className="text-sm text-gray-500">52 Week High</p>
-                    <p className="font-semibold text-gray-900">{formatCurrency(quote.high52Week)}</p>
+                    <p className="font-semibold text-gray-900">{formatCurrency(stockQuote.high52Week)}</p>
                   </div>
                 )}
-                {quote.low52Week && (
+                {stockQuote.low52Week && (
                   <div>
                     <p className="text-sm text-gray-500">52 Week Low</p>
-                    <p className="font-semibold text-gray-900">{formatCurrency(quote.low52Week)}</p>
+                    <p className="font-semibold text-gray-900">{formatCurrency(stockQuote.low52Week)}</p>
                   </div>
                 )}
                 <div>
                   <p className="text-sm text-gray-500">Volume</p>
-                  <p className="font-semibold text-gray-900">{formatNumber(quote.volume)}</p>
+                  <p className="font-semibold text-gray-900">{formatNumber(stockQuote.volume)}</p>
                 </div>
-                {quote.avgVolume && (
+                {stockQuote.avgVolume && (
                   <div>
                     <p className="text-sm text-gray-500">Avg Volume</p>
-                    <p className="font-semibold text-gray-900">{formatNumber(quote.avgVolume)}</p>
+                    <p className="font-semibold text-gray-900">{formatNumber(stockQuote.avgVolume)}</p>
                   </div>
                 )}
-                {quote.dividendYield && (
+                {stockQuote.dividendYield && (
                   <div>
                     <p className="text-sm text-gray-500">Dividend Yield</p>
-                    <p className="font-semibold text-gray-900">{formatPercent(quote.dividendYield)}</p>
+                    <p className="font-semibold text-gray-900">{formatPercent(stockQuote.dividendYield)}</p>
                   </div>
                 )}
-                {quote.eps && (
+                {stockQuote.eps && (
                   <div>
                     <p className="text-sm text-gray-500">EPS</p>
-                    <p className="font-semibold text-gray-900">{formatCurrency(quote.eps)}</p>
+                    <p className="font-semibold text-gray-900">{formatCurrency(stockQuote.eps)}</p>
                   </div>
                 )}
-                {quote.beta && (
+                {stockQuote.beta && (
                   <div>
                     <p className="text-sm text-gray-500">Beta</p>
-                    <p className="font-semibold text-gray-900">{formatNumber(quote.beta)}</p>
+                    <p className="font-semibold text-gray-900">{formatNumber(stockQuote.beta)}</p>
                   </div>
                 )}
-                {quote.roe && (
+                {stockQuote.roe && (
                   <div>
                     <p className="text-sm text-gray-500">ROE</p>
-                    <p className="font-semibold text-gray-900">{formatPercent(quote.roe)}</p>
+                    <p className="font-semibold text-gray-900">{formatPercent(stockQuote.roe)}</p>
                   </div>
                 )}
               </div>
