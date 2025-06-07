@@ -250,71 +250,7 @@ async function searchStocks(query: string): Promise<any[]> {
   return [];
 }
 
-// Data quality filters to clean market data
-function applyDataQualityFilters(data: any[], range: string): any[] {
-  console.log(`[DATA_FILTER] Starting filter for ${data?.length || 0} points, range: ${range}`);
-  if (!data || data.length === 0) return data;
 
-  let filtered = [...data];
-
-  // For intraday data, filter to market hours only (9:30 AM - 4:00 PM EST)
-  if (range === "1D") {
-    filtered = filtered.filter(point => {
-      const date = new Date(point.timestamp);
-      const hour = date.getHours();
-      const minute = date.getMinutes();
-      const timeInMinutes = hour * 60 + minute;
-      
-      // Market hours: 9:30 AM (570 minutes) to 4:00 PM (960 minutes) EST
-      return timeInMinutes >= 570 && timeInMinutes <= 960;
-    });
-  }
-
-  // Remove price outliers using statistical method
-  if (filtered.length > 5) {
-    const prices = filtered.map(p => p.price).filter(p => p > 0);
-    const mean = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-    const variance = prices.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / prices.length;
-    const stdDev = Math.sqrt(variance);
-    
-    // Remove data points more than 3 standard deviations from mean
-    const threshold = 3 * stdDev;
-    filtered = filtered.filter(point => {
-      const deviation = Math.abs(point.price - mean);
-      return deviation <= threshold;
-    });
-  }
-
-  // Remove impossible price movements (> 10% in 5 minutes for intraday)
-  if (range === "1D" && filtered.length > 1) {
-    const cleanedPoints = [filtered[0]];
-    
-    for (let i = 1; i < filtered.length; i++) {
-      const current = filtered[i];
-      const previous = filtered[i - 1];
-      
-      if (previous.price > 0) {
-        const changePercent = Math.abs((current.price - previous.price) / previous.price);
-        
-        // Skip points with > 10% change in 5 minutes (likely data errors)
-        if (changePercent <= 0.10) {
-          cleanedPoints.push(current);
-        } else {
-          console.log(`Data quality filter: Removed price spike from ${previous.price} to ${current.price} (${(changePercent * 100).toFixed(2)}% change)`);
-        }
-      } else {
-        cleanedPoints.push(current);
-      }
-    }
-    
-    filtered = cleanedPoints;
-  }
-
-  // Remove zero or negative prices
-  filtered = filtered.filter(point => point.price > 0);
-
-  return filtered;
-}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Stock quote endpoint
@@ -629,10 +565,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Fetch historical price data
+  // Fetch historical price data with data quality filtering
   async function fetchHistoricalData(symbol: string, range: string): Promise<any> {
-    // Try Alpha Vantage first for intraday data with data quality filters
+    // Use Alpha Vantage for all intraday requests (cleaner data, no after-hours noise)
     if (ALPHA_VANTAGE_API_KEY && range === "1D") {
+      console.log(`[DATA_SOURCE] Using Alpha Vantage for ${symbol} intraday data with quality filters`);
       try {
         const response = await fetch(
           `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${ALPHA_VANTAGE_API_KEY}`
@@ -641,23 +578,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (data["Time Series (5min)"]) {
           const timeSeries = data["Time Series (5min)"];
-          const chartData = Object.entries(timeSeries)
+          const rawData = Object.entries(timeSeries)
             .slice(0, 78) // Last 6.5 hours of trading
             .reverse()
             .map(([time, values]: [string, any]) => ({
+              timestamp: new Date(time).getTime(),
               time: new Date(time).toLocaleTimeString("en-US", { 
                 hour: "numeric", 
                 minute: "2-digit",
                 hour12: false 
               }),
               price: parseFloat(values["4. close"]),
+              open: parseFloat(values["1. open"]),
+              high: parseFloat(values["2. high"]),
+              low: parseFloat(values["3. low"]),
               volume: parseInt(values["5. volume"])
             }));
+            
+          // Apply data quality filters to remove price spikes
+          const filteredData = [];
+          let spikesRemoved = 0;
+          
+          for (let i = 0; i < rawData.length; i++) {
+            const current = rawData[i];
+            const previous = rawData[i - 1];
+            
+            if (i === 0 || !previous) {
+              filteredData.push(current);
+            } else if (previous.price > 0) {
+              const changePercent = Math.abs((current.price - previous.price) / previous.price);
+              
+              // Remove price spikes > 5% in 5 minutes (likely data errors)
+              if (changePercent <= 0.05) {
+                filteredData.push(current);
+              } else {
+                console.log(`[ALPHA_VANTAGE] Removed price spike: ${previous.price} -> ${current.price} (${(changePercent * 100).toFixed(1)}%)`);
+                spikesRemoved++;
+              }
+            } else {
+              filteredData.push(current);
+            }
+          }
+          
+          if (spikesRemoved > 0) {
+            console.log(`[ALPHA_VANTAGE] Data quality: removed ${spikesRemoved} price spikes from ${rawData.length} points`);
+          }
+          
+          return filteredData;
+        }
+      } catch (error) {
+        console.error("Alpha Vantage intraday error:", error);
+      }
+    }
+
+    // Fallback to Finnhub for longer timeframes
+    if (FINNHUB_API_KEY && range !== "1D") {
+      try {
+        const now = Math.floor(Date.now() / 1000);
+        let from = now;
+        let resolution = "D";
+        
+        switch (range) {
+          case "1W":
+            from = now - 604800; // 1 week
+            resolution = "60";
+            break;
+          case "1M":
+            from = now - 2592000; // 1 month
+            resolution = "D";
+            break;
+          case "3M":
+            from = now - 7776000; // 3 months
+            resolution = "D";
+            break;
+          case "1Y":
+            from = now - 31536000; // 1 year
+            resolution = "D";
+            break;
+        }
+
+        const response = await fetch(
+          `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${now}&token=${FINNHUB_API_KEY}`
+        );
+        const data = await response.json();
+        
+        if (data.s === "ok" && data.c && data.t) {
+          const chartData = data.t.map((timestamp: number, index: number) => ({
+            time: new Date(timestamp * 1000).toLocaleDateString("en-US", { 
+              month: "short", 
+              day: "numeric" 
+            }),
+            price: data.c[index],
+            open: data.o[index],
+            high: data.h[index],
+            low: data.l[index],
+            volume: data.v[index]
+          }));
           
           return chartData;
         }
       } catch (error) {
-        console.error("Alpha Vantage intraday error:", error);
+        console.error("Finnhub fallback error:", error);
       }
     }
 
