@@ -36,75 +36,76 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
 
   return (
     <Dialog open={!!symbol} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        {isLoading ? (
-          <div className="space-y-6">
-            <DialogHeader>
-              <div className="flex items-center space-x-4">
-                <Skeleton className="w-16 h-16 rounded-full" />
-                <div className="space-y-2">
-                  <Skeleton className="h-6 w-32" />
-                  <Skeleton className="h-4 w-24" />
-                </div>
-              </div>
-            </DialogHeader>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-6 w-16" />
-                </div>
-              ))}
-            </div>
-            <Skeleton className="h-80 w-full" />
-          </div>
-        ) : !quote ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">Failed to load stock data</p>
-            <Button onClick={onClose} className="mt-4">Close</Button>
-          </div>
-        ) : (
-          <>
-            <DialogHeader>
-              <div className="flex items-center justify-between">
+      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
+        <div className="p-6">
+          {isLoading ? (
+            <div className="space-y-6">
+              <DialogHeader>
                 <div className="flex items-center space-x-4">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${getStockColor(symbol)}`}>
-                    <span className="font-bold text-lg">{getStockInitials(symbol)}</span>
-                  </div>
-                  <div>
-                    <DialogTitle className="text-2xl font-bold">{quote.companyName}</DialogTitle>
-                    <p className="text-gray-500">NASDAQ: {quote.symbol}</p>
+                  <Skeleton className="w-16 h-16 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-4 w-24" />
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={onClose}>
-                  <X className="w-6 h-6" />
+              </DialogHeader>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                ))}
+              </div>
+              <Skeleton className="h-80 w-full" />
+            </div>
+          ) : !quote ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Failed to load stock data</p>
+              <Button onClick={onClose} className="mt-4">Close</Button>
+            </div>
+          ) : (
+            <>
+              <DialogHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center ${getStockColor(symbol)}`}>
+                      <span className="font-bold text-lg">{getStockInitials(symbol)}</span>
+                    </div>
+                    <div>
+                      <DialogTitle className="text-2xl font-bold">{(quote as any).companyName}</DialogTitle>
+                      <p className="text-gray-500">NASDAQ: {(quote as any).symbol}</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={onClose}>
+                    <X className="w-6 h-6" />
                 </Button>
               </div>
 
               <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Current Price</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(quote.price)}</p>
-                  <p className={`text-sm ${getChangeColor(quote.change)}`}>
-                    {quote.change >= 0 ? "+" : ""}{formatCurrency(quote.change)} ({formatPercent(quote.changePercent)})
+                  <p className="text-2xl font-bold text-gray-900">{formatCurrency((quote as any).price)}</p>
+                  <p className={`text-sm ${getChangeColor((quote as any).change)}`}>
+                    {(quote as any).change >= 0 ? "+" : ""}{formatCurrency((quote as any).change)} ({formatPercent((quote as any).changePercent)})
                   </p>
                 </div>
-                {quote.marketCap && (
+                {(quote as any).marketCap && (
                   <div>
                     <p className="text-sm text-gray-500">Market Cap</p>
-                    <p className="text-lg font-semibold text-gray-900">{formatMarketCap(quote.marketCap)}</p>
+                    <p className="text-lg font-semibold text-gray-900">{formatMarketCap((quote as any).marketCap)}</p>
                   </div>
                 )}
-                {quote.peRatio && (
+                {(quote as any).peRatio && (
                   <div>
                     <p className="text-sm text-gray-500">P/E Ratio</p>
-                    <p className="text-lg font-semibold text-gray-900">{formatNumber(quote.peRatio)}</p>
+                    <p className="text-lg font-semibold text-gray-900">{formatNumber((quote as any).peRatio)}</p>
                   </div>
                 )}
-                {quote.earningsDate && (
+                {(quote as any).earningsDate && (
                   <div>
                     <p className="text-sm text-gray-500">Next Earnings</p>
-                    <p className="text-lg font-semibold text-gray-900">{quote.earningsDate}</p>
+                    <p className="text-lg font-semibold text-gray-900">{(quote as any).earningsDate}</p>
                   </div>
                 )}
               </div>
@@ -172,6 +173,7 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
             </div>
           </>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );

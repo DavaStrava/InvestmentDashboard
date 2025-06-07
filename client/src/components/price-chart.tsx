@@ -38,9 +38,18 @@ export default function PriceChart({ symbol }: PriceChartProps) {
   };
 
   const formatXAxisTick = (tickItem: string) => {
-    // For intraday charts, show only hour:minute
+    // Parse the time string and format properly
     if (timeRange === "1D") {
-      return tickItem; // Already formatted as "HH:mm" from server
+      // For intraday, show clean time format like "9:30 AM"
+      const timeMatch = tickItem.match(/(\d{1,2}):(\d{2})/);
+      if (timeMatch) {
+        const hour = parseInt(timeMatch[1]);
+        const minute = timeMatch[2];
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        return `${displayHour}:${minute} ${ampm}`;
+      }
+      return tickItem;
     }
     // For longer timeframes, show date format
     return tickItem;
@@ -130,35 +139,28 @@ export default function PriceChart({ symbol }: PriceChartProps) {
         ) : chartData && chartData.length > 0 ? (
           <div className="space-y-6">
             {/* Price Chart */}
-            <div className="h-96 bg-gray-50 rounded-lg p-4">
+            <div className="h-[500px] bg-gray-50 rounded-lg p-6">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <LineChart data={chartData} margin={{ top: 30, right: 40, left: 80, bottom: 80 }}>
                   <CartesianGrid strokeDasharray="2 2" stroke="rgba(0,0,0,0.08)" horizontal={true} vertical={false} />
                   <XAxis 
                     dataKey="time" 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: "#6B7280" }}
-                    interval={Math.max(1, Math.floor(chartData.length / 6))}
+                    tick={{ fontSize: 12, fill: "#374151" }}
+                    interval={Math.max(0, Math.floor(chartData.length / 8))}
                     tickFormatter={formatXAxisTick}
+                    height={60}
+                    angle={-35}
+                    textAnchor="end"
                   />
                   <YAxis 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: "#6B7280" }}
-                    domain={[(dataMin: number) => {
-                      const min = Math.min(...chartData.map((d: any) => d.price));
-                      const max = Math.max(...chartData.map((d: any) => d.price));
-                      const range = max - min;
-                      return Math.max(0, min - range * 0.05);
-                    }, (dataMax: number) => {
-                      const min = Math.min(...chartData.map((d: any) => d.price));
-                      const max = Math.max(...chartData.map((d: any) => d.price));
-                      const range = max - min;
-                      return max + range * 0.05;
-                    }]}
+                    tick={{ fontSize: 12, fill: "#374151" }}
+                    domain={['dataMin - 1', 'dataMax + 1']}
                     tickFormatter={(value) => `$${value.toFixed(2)}`}
-                    width={60}
+                    width={90}
                   />
                   <Tooltip 
                     formatter={formatTooltip}
@@ -187,27 +189,30 @@ export default function PriceChart({ symbol }: PriceChartProps) {
 
             {/* Volume Chart - only show if volume data is available */}
             {chartData.some((d: any) => d.volume) && (
-              <div className="h-48 bg-gray-50 rounded-lg p-4">
-                <div className="mb-3">
+              <div className="h-[300px] bg-gray-50 rounded-lg p-6">
+                <div className="mb-4">
                   <h4 className="text-sm font-medium text-gray-700">Trading Volume</h4>
                 </div>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+                  <BarChart data={chartData} margin={{ top: 20, right: 40, left: 80, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="2 2" stroke="rgba(0,0,0,0.08)" horizontal={true} vertical={false} />
                     <XAxis 
                       dataKey="time" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fill: "#6B7280" }}
-                      interval={Math.max(1, Math.floor(chartData.length / 6))}
+                      tick={{ fontSize: 12, fill: "#374151" }}
+                      interval={Math.max(0, Math.floor(chartData.length / 8))}
                       tickFormatter={formatXAxisTick}
+                      height={50}
+                      angle={-35}
+                      textAnchor="end"
                     />
                     <YAxis 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fill: "#6B7280" }}
+                      tick={{ fontSize: 12, fill: "#374151" }}
                       tickFormatter={formatVolumeNumber}
-                      width={50}
+                      width={90}
                     />
                     <Tooltip 
                       formatter={formatTooltip}
