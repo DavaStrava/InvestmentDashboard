@@ -37,6 +37,15 @@ export default function PriceChart({ symbol }: PriceChartProps) {
     return [value, name];
   };
 
+  const formatXAxisTick = (tickItem: string) => {
+    // For intraday charts, show only hour:minute
+    if (timeRange === "1D") {
+      return tickItem; // Already formatted as "HH:mm" from server
+    }
+    // For longer timeframes, show date format
+    return tickItem;
+  };
+
   const formatVolumeNumber = (value: number) => {
     if (value >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
@@ -106,7 +115,7 @@ export default function PriceChart({ symbol }: PriceChartProps) {
         ) : chartData && chartData.length > 0 ? (
           <div className="space-y-4">
             {/* Price Chart */}
-            <div className="h-64">
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
@@ -114,14 +123,27 @@ export default function PriceChart({ symbol }: PriceChartProps) {
                     dataKey="time" 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: "#6B7280" }}
+                    tick={{ fontSize: 11, fill: "#6B7280" }}
+                    interval={Math.max(1, Math.floor(chartData.length / 6))}
+                    tickFormatter={formatXAxisTick}
                   />
                   <YAxis 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: "#6B7280" }}
-                    domain={["dataMin - 2", "dataMax + 2"]}
-                    tickFormatter={(value) => `$${value.toFixed(0)}`}
+                    tick={{ fontSize: 11, fill: "#6B7280" }}
+                    domain={[(dataMin: number) => {
+                      const min = Math.min(...chartData.map((d: any) => d.price));
+                      const max = Math.max(...chartData.map((d: any) => d.price));
+                      const range = max - min;
+                      return Math.max(0, min - range * 0.05);
+                    }, (dataMax: number) => {
+                      const min = Math.min(...chartData.map((d: any) => d.price));
+                      const max = Math.max(...chartData.map((d: any) => d.price));
+                      const range = max - min;
+                      return max + range * 0.05;
+                    }]}
+                    tickFormatter={(value) => `$${value.toFixed(2)}`}
+                    width={60}
                   />
                   <Tooltip 
                     formatter={formatTooltip}
@@ -147,7 +169,7 @@ export default function PriceChart({ symbol }: PriceChartProps) {
 
             {/* Volume Chart - only show if volume data is available */}
             {chartData.some((d: any) => d.volume) && (
-              <div className="h-32">
+              <div className="h-40">
                 <div className="mb-2">
                   <h4 className="text-sm font-medium text-gray-700">Volume</h4>
                 </div>
@@ -158,13 +180,16 @@ export default function PriceChart({ symbol }: PriceChartProps) {
                       dataKey="time" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12, fill: "#6B7280" }}
+                      tick={{ fontSize: 11, fill: "#6B7280" }}
+                      interval="preserveStartEnd"
+                      minTickGap={30}
                     />
                     <YAxis 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12, fill: "#6B7280" }}
+                      tick={{ fontSize: 11, fill: "#6B7280" }}
                       tickFormatter={formatVolumeNumber}
+                      width={50}
                     />
                     <Tooltip 
                       formatter={formatTooltip}
