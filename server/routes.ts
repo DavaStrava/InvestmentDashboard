@@ -252,6 +252,7 @@ async function searchStocks(query: string): Promise<any[]> {
 
 // Data quality filters to clean market data
 function applyDataQualityFilters(data: any[], range: string): any[] {
+  console.log(`[DATA_FILTER] Starting filter for ${data?.length || 0} points, range: ${range}`);
   if (!data || data.length === 0) return data;
 
   let filtered = [...data];
@@ -686,7 +687,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }));
           
           // Apply data quality filters
+          console.log(`[DEBUG] About to filter ${rawData.length} data points for range: ${range}`);
           const cleanedData = applyDataQualityFilters(rawData, range);
+          console.log(`[DEBUG] Filtering complete: ${cleanedData.length} points remaining`);
           return cleanedData;
         }
       } catch (error) {
