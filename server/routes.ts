@@ -563,37 +563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Fetch historical price data
   async function fetchHistoricalData(symbol: string, range: string): Promise<any> {
-    // Try Alpha Vantage first for intraday data
-    if (ALPHA_VANTAGE_API_KEY && range === "1D") {
-      try {
-        const response = await fetch(
-          `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${ALPHA_VANTAGE_API_KEY}`
-        );
-        const data = await response.json();
-        
-        if (data["Time Series (5min)"]) {
-          const timeSeries = data["Time Series (5min)"];
-          const chartData = Object.entries(timeSeries)
-            .slice(0, 78) // Last 6.5 hours of trading
-            .reverse()
-            .map(([time, values]: [string, any]) => ({
-              time: new Date(time).toLocaleTimeString("en-US", { 
-                hour: "numeric", 
-                minute: "2-digit",
-                hour12: false 
-              }),
-              price: parseFloat(values["4. close"]),
-              volume: parseInt(values["5. volume"])
-            }));
-          
-          return chartData;
-        }
-      } catch (error) {
-        console.error("Alpha Vantage intraday error:", error);
-      }
-    }
-
-    // Try Finnhub for historical data
+    // Try Finnhub first for historical data
     if (FINNHUB_API_KEY) {
       try {
         const now = Math.floor(Date.now() / 1000);
@@ -651,6 +621,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } catch (error) {
         console.error("Finnhub historical data error:", error);
+      }
+    }
+
+    // Fallback to Alpha Vantage for intraday data if Finnhub fails
+    if (ALPHA_VANTAGE_API_KEY && range === "1D") {
+      try {
+        const response = await fetch(
+          `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${ALPHA_VANTAGE_API_KEY}`
+        );
+        const data = await response.json();
+        
+        if (data["Time Series (5min)"]) {
+          const timeSeries = data["Time Series (5min)"];
+          const chartData = Object.entries(timeSeries)
+            .slice(0, 78) // Last 6.5 hours of trading
+            .reverse()
+            .map(([time, values]: [string, any]) => ({
+              time: new Date(time).toLocaleTimeString("en-US", { 
+                hour: "numeric", 
+                minute: "2-digit",
+                hour12: false 
+              }),
+              price: parseFloat(values["4. close"]),
+              volume: parseInt(values["5. volume"])
+            }));
+          
+          return chartData;
+        }
+      } catch (error) {
+        console.error("Alpha Vantage intraday error:", error);
       }
     }
 
