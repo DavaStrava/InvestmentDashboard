@@ -27,14 +27,14 @@ export default function Portfolio() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-2">
-                <ChartLine className="text-primary text-2xl" />
-                <h1 className="text-xl font-bold text-gray-900">PortfolioTracker</h1>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            <div className="flex items-center space-x-4 sm:space-x-8 min-w-0">
+              <div className="flex items-center space-x-2 min-w-0">
+                <ChartLine className="text-primary text-lg sm:text-2xl flex-shrink-0" />
+                <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">PortfolioTracker</h1>
               </div>
-              <nav className="hidden md:flex space-x-6">
+              <nav className="hidden sm:flex space-x-4 lg:space-x-6">
                 <button
                   onClick={() => setActiveTab("portfolio")}
                   className={`font-medium pb-1 ${
@@ -68,28 +68,57 @@ export default function Portfolio() {
               </nav>
             </div>
 
-            <div className="flex items-center space-x-4">
-              <div className="hidden sm:block">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="hidden lg:block">
                 <StockSearch onSelectStock={setSelectedStock} />
               </div>
 
               <Button
                 onClick={() => setShowAddStock(true)}
-                className="bg-primary text-white hover:bg-blue-700"
+                size="sm"
+                className="bg-primary text-white hover:bg-blue-700 h-8 sm:h-9"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Stock
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Stock</span>
               </Button>
 
-              <Button variant="ghost" size="icon" className="text-gray-600 hover:text-gray-900">
-                <Bell className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="text-gray-600 hover:text-gray-900 h-8 w-8 sm:h-10 sm:w-10">
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
             </div>
           </div>
         </div>
+        
+        {/* Mobile Navigation */}
+        <div className="sm:hidden border-t border-gray-200 bg-white">
+          <div className="flex">
+            {[
+              { key: "portfolio", label: "Portfolio" },
+              { key: "watchlist", label: "Watchlist" },
+              { key: "analytics", label: "Analytics" }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as TabType)}
+                className={`flex-1 py-3 px-2 text-xs font-medium text-center ${
+                  activeTab === tab.key
+                    ? "text-primary border-t-2 border-primary bg-blue-50"
+                    : "text-gray-600"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Mobile Search Bar */}
+      <div className="lg:hidden bg-white border-b border-gray-200 px-3 py-2">
+        <StockSearch onSelectStock={setSelectedStock} />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 pb-20 sm:pb-6">
         {activeTab === "portfolio" && (
           <>
             <PortfolioSummary />

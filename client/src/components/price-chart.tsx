@@ -96,35 +96,37 @@ export default function PriceChart({ symbol }: PriceChartProps) {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Price Chart</h3>
-          {chartData && chartData.length > 1 && (
-            <div className="flex items-center space-x-3 mt-1">
-              <span className="text-sm text-gray-600">
-                Range: ${Math.min(...chartData.map((d: any) => d.price)).toFixed(2)} - ${Math.max(...chartData.map((d: any) => d.price)).toFixed(2)}
-              </span>
-              <span className={`text-sm font-medium ${
-                chartData[chartData.length - 1].price >= chartData[0].price ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {chartData[chartData.length - 1].price >= chartData[0].price ? '↗' : '↘'} 
-                {((chartData[chartData.length - 1].price - chartData[0].price) / chartData[0].price * 100).toFixed(2)}%
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="flex space-x-1">
-          {(["1D", "1W", "1M", "3M", "1Y"] as TimeRange[]).map((range) => (
-            <Button
-              key={range}
-              variant={timeRange === range ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTimeRange(range)}
-              className={`min-w-12 ${timeRange === range ? "bg-blue-600 text-white hover:bg-blue-700" : "hover:bg-gray-100"}`}
-            >
-              {range}
-            </Button>
-          ))}
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Price Chart</h3>
+            {chartData && chartData.length > 1 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mt-1 gap-1 sm:gap-0">
+                <span className="text-xs sm:text-sm text-gray-600 truncate">
+                  Range: ${Math.min(...chartData.map((d: any) => d.price)).toFixed(2)} - ${Math.max(...chartData.map((d: any) => d.price)).toFixed(2)}
+                </span>
+                <span className={`text-xs sm:text-sm font-medium ${
+                  chartData[chartData.length - 1].price >= chartData[0].price ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {chartData[chartData.length - 1].price >= chartData[0].price ? '↗' : '↘'} 
+                  {((chartData[chartData.length - 1].price - chartData[0].price) / chartData[0].price * 100).toFixed(2)}%
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex space-x-1 sm:space-x-2 overflow-x-auto">
+            {(["1D", "1W", "1M", "3M", "1Y"] as TimeRange[]).map((range) => (
+              <Button
+                key={range}
+                variant={timeRange === range ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTimeRange(range)}
+                className={`min-w-12 h-8 sm:h-9 text-xs sm:text-sm flex-shrink-0 ${timeRange === range ? "bg-blue-600 text-white hover:bg-blue-700" : "hover:bg-gray-100"}`}
+              >
+                {range}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
