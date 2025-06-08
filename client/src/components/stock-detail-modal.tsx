@@ -38,8 +38,8 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
 
   return (
     <Dialog open={!!symbol} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto p-0">
-        <div className="p-4">
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto p-0 m-2 sm:m-4">
+        <div className="p-2 sm:p-4">
           {isLoading ? (
             <div className="space-y-6">
               <DialogHeader>
@@ -69,26 +69,26 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
           ) : (
             <>
               <DialogHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center ${getStockColor(symbol)}`}>
-                      <span className="font-bold text-lg">{getStockInitials(symbol)}</span>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center ${getStockColor(symbol)}`}>
+                      <span className="font-bold text-sm sm:text-lg">{getStockInitials(symbol)}</span>
                     </div>
-                    <div>
-                      <DialogTitle className="text-2xl font-bold">{stockQuote.companyName}</DialogTitle>
-                      <p className="text-gray-500">NASDAQ: {stockQuote.symbol}</p>
+                    <div className="min-w-0 flex-1">
+                      <DialogTitle className="text-lg sm:text-2xl font-bold truncate">{stockQuote.companyName}</DialogTitle>
+                      <p className="text-gray-500 text-sm">NASDAQ: {stockQuote.symbol}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={onClose}>
-                    <X className="w-6 h-6" />
+                  <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0 ml-2">
+                    <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </Button>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Current Price</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(stockQuote.price)}</p>
-                  <p className={`text-sm ${getChangeColor(stockQuote.change)}`}>
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="sm:col-span-2 lg:col-span-1">
+                  <p className="text-xs sm:text-sm text-gray-500">Current Price</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(stockQuote.price)}</p>
+                  <p className={`text-xs sm:text-sm ${getChangeColor(stockQuote.change)}`}>
                     {stockQuote.change >= 0 ? "+" : ""}{formatCurrency(stockQuote.change)} ({formatPercent(stockQuote.changePercent)})
                   </p>
                 </div>
@@ -113,11 +113,11 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
               </div>
             </DialogHeader>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div className="xl:col-span-1">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+              <div className="lg:col-span-2 xl:col-span-1 order-1">
                 <PriceChart symbol={symbol} />
               </div>
-              <div className="xl:col-span-1">
+              <div className="lg:col-span-2 xl:col-span-1 order-2">
                 <AIPrediction symbol={symbol} />
               </div>
             </div>

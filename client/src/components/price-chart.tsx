@@ -139,28 +139,28 @@ export default function PriceChart({ symbol }: PriceChartProps) {
         ) : chartData && chartData.length > 0 ? (
           <div className="space-y-3">
             {/* Price Chart */}
-            <div className="h-[700px] bg-gray-50 rounded-lg p-2">
+            <div className="h-[400px] sm:h-[500px] lg:h-[600px] xl:h-[700px] bg-gray-50 rounded-lg p-1 sm:p-2">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 15, right: 15, left: 50, bottom: 40 }}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: 35, bottom: 30 }}>
                   <CartesianGrid strokeDasharray="2 2" stroke="rgba(0,0,0,0.08)" horizontal={true} vertical={false} />
                   <XAxis 
                     dataKey="time" 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: "#374151" }}
-                    interval={Math.max(0, Math.floor(chartData.length / 8))}
+                    tick={{ fontSize: 10, fill: "#374151" }}
+                    interval={Math.max(0, Math.floor(chartData.length / 4))}
                     tickFormatter={formatXAxisTick}
-                    height={60}
-                    angle={-35}
+                    height={40}
+                    angle={-30}
                     textAnchor="end"
                   />
                   <YAxis 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: "#374151" }}
+                    tick={{ fontSize: 10, fill: "#374151" }}
                     domain={['dataMin - 1', 'dataMax + 1']}
-                    tickFormatter={(value) => `$${value.toFixed(2)}`}
-                    width={90}
+                    tickFormatter={(value) => `$${value.toFixed(1)}`}
+                    width={50}
                   />
                   <Tooltip 
                     formatter={formatTooltip}
@@ -189,30 +189,30 @@ export default function PriceChart({ symbol }: PriceChartProps) {
 
             {/* Volume Chart - only show if volume data is available */}
             {chartData.some((d: any) => d.volume) && (
-              <div className="h-[400px] bg-gray-50 rounded-lg p-2">
+              <div className="h-[250px] sm:h-[300px] lg:h-[350px] xl:h-[400px] bg-gray-50 rounded-lg p-1 sm:p-2">
                 <div className="mb-1">
-                  <h4 className="text-sm font-medium text-gray-700">Trading Volume</h4>
+                  <h4 className="text-xs sm:text-sm font-medium text-gray-700">Trading Volume</h4>
                 </div>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 15, left: 50, bottom: 35 }}>
+                  <BarChart data={chartData} margin={{ top: 8, right: 10, left: 35, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="2 2" stroke="rgba(0,0,0,0.08)" horizontal={true} vertical={false} />
                     <XAxis 
                       dataKey="time" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12, fill: "#374151" }}
-                      interval={Math.max(0, Math.floor(chartData.length / 8))}
+                      tick={{ fontSize: 10, fill: "#374151" }}
+                      interval={Math.max(0, Math.floor(chartData.length / 4))}
                       tickFormatter={formatXAxisTick}
-                      height={50}
-                      angle={-35}
+                      height={35}
+                      angle={-30}
                       textAnchor="end"
                     />
                     <YAxis 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12, fill: "#374151" }}
+                      tick={{ fontSize: 10, fill: "#374151" }}
                       tickFormatter={formatVolumeNumber}
-                      width={90}
+                      width={50}
                     />
                     <Tooltip 
                       formatter={formatTooltip}
