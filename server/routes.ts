@@ -4,50 +4,48 @@ import { storage } from "./storage";
 import { insertHoldingSchema, insertWatchlistSchema, type StockQuote, type PortfolioSummary, type HoldingWithQuote } from "@shared/schema";
 import { z } from "zod";
 
-// API Configuration - supports multiple providers
-const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY;
-const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
+// FMP API Configuration
+const FMP_API_KEY = process.env.FMP_API_KEY;
+const FMP_BASE_URL = 'https://financialmodelingprep.com/api';
 
-// Finnhub API implementation
-async function fetchStockQuoteFromFinnhub(symbol: string): Promise<StockQuote | null> {
-  if (!FINNHUB_API_KEY) return null;
+// FMP API implementation for stock quotes
+async function fetchStockQuoteFromFMP(symbol: string): Promise<StockQuote | null> {
+  if (!FMP_API_KEY) return null;
   
   try {
-    const [quoteResponse, profileResponse] = await Promise.all([
-      fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`),
-      fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`)
+    // Get real-time quote, company profile, and key metrics
+    const [quoteResponse, profileResponse, metricsResponse] = await Promise.all([
+      fetch(`${FMP_BASE_URL}/v3/quote/${symbol}?apikey=${FMP_API_KEY}`),
+      fetch(`${FMP_BASE_URL}/v3/profile/${symbol}?apikey=${FMP_API_KEY}`),
+      fetch(`${FMP_BASE_URL}/v3/key-metrics/${symbol}?period=annual&limit=1&apikey=${FMP_API_KEY}`)
     ]);
     
-    const quoteData = await quoteResponse.json();
-    const profileData = await profileResponse.json();
+    const [quoteData] = await quoteResponse.json();
+    const [profileData] = await profileResponse.json();
+    const [metricsData] = await metricsResponse.json();
     
-    if (quoteData.error || !quoteData.c) return null;
-    
-    const price = quoteData.c;
-    const change = quoteData.d || 0;
-    const changePercent = quoteData.dp || 0;
+    if (!quoteData || !quoteData.price) return null;
     
     return {
-      symbol: symbol.toUpperCase(),
-      companyName: profileData.name || symbol,
-      price,
-      change,
-      changePercent,
-      volume: quoteData.v || 0,
-      marketCap: profileData.marketCapitalization,
-      peRatio: undefined,
-      earningsDate: undefined,
-      high52Week: quoteData.h,
-      low52Week: quoteData.l,
-      dividendYield: undefined,
-      eps: undefined,
-      beta: undefined,
-      roe: undefined,
+      symbol: quoteData.symbol,
+      companyName: profileData?.companyName || quoteData.name || symbol,
+      price: quoteData.price,
+      change: quoteData.change || 0,
+      changePercent: quoteData.changesPercentage || 0,
+      volume: quoteData.volume || 0,
+      marketCap: profileData?.mktCap,
+      peRatio: metricsData?.peRatio,
+      earningsDate: profileData?.lastDiv,
+      high52Week: quoteData.yearHigh,
+      low52Week: quoteData.yearLow,
+      avgVolume: quoteData.avgVolume,
+      dividendYield: profileData?.lastDiv ? (profileData.lastDiv / quoteData.price * 100) : undefined,
+      eps: quoteData.eps,
+      beta: profileData?.beta,
+      roe: metricsData?.roe,
     };
   } catch (error) {
-    console.error(`Finnhub error for ${symbol}:`, error);
+    console.error(`FMP error for ${symbol}:`, error);
     return null;
   }
 }
@@ -140,48 +138,34 @@ async function fetchStockQuoteFromAlphaVantage(symbol: string): Promise<StockQuo
   }
 }
 
-// Main quote function that tries multiple providers
+// Main quote function using FMP as primary source
 async function fetchStockQuote(symbol: string): Promise<StockQuote | null> {
-  // Try providers in order of preference
-  const providers = [
-    fetchStockQuoteFromFinnhub,
-    fetchStockQuoteFromTwelveData,
-    fetchStockQuoteFromAlphaVantage
-  ];
-  
-  for (const provider of providers) {
-    try {
-      const result = await provider(symbol);
-      if (result) return result;
-    } catch (error) {
-      console.error(`Provider failed for ${symbol}:`, error);
-      continue;
-    }
-  }
-  
-  return null;
+  console.log(`[FMP] Fetching quote for ${symbol}`);
+  return await fetchStockQuoteFromFMP(symbol);
 }
 
-// Search implementation for multiple providers
-async function searchStocksFromFinnhub(query: string): Promise<any[]> {
-  if (!FINNHUB_API_KEY) return [];
+// FMP stock search implementation
+async function searchStocksFromFMP(query: string): Promise<any[]> {
+  if (!FMP_API_KEY) return [];
   
   try {
     const response = await fetch(
-      `https://finnhub.io/api/v1/search?q=${query}&token=${FINNHUB_API_KEY}`
+      `${FMP_BASE_URL}/v3/search?query=${query}&limit=10&exchange=NASDAQ,NYSE&apikey=${FMP_API_KEY}`
     );
     const data = await response.json();
     
-    if (data.error) return [];
+    if (!Array.isArray(data)) return [];
     
-    return (data.result || []).map((item: any) => ({
+    return data.map((item: any) => ({
       "1. symbol": item.symbol,
-      "2. name": item.description,
-      "3. type": item.type,
+      "2. name": item.name,
+      "3. type": "Equity",
       "4. region": "US",
+      "5. marketCap": item.marketCap,
+      "6. exchange": item.exchangeShortName,
     }));
   } catch (error) {
-    console.error("Finnhub search error:", error);
+    console.error("FMP search error:", error);
     return [];
   }
 }
@@ -230,24 +214,8 @@ async function searchStocksFromAlphaVantage(query: string): Promise<any[]> {
 }
 
 async function searchStocks(query: string): Promise<any[]> {
-  // Try search providers in order
-  const searchProviders = [
-    searchStocksFromFinnhub,
-    searchStocksFromTwelveData,
-    searchStocksFromAlphaVantage
-  ];
-  
-  for (const provider of searchProviders) {
-    try {
-      const results = await provider(query);
-      if (results && results.length > 0) return results;
-    } catch (error) {
-      console.error(`Search provider failed for ${query}:`, error);
-      continue;
-    }
-  }
-  
-  return [];
+  console.log(`[FMP] Searching for: ${query}`);
+  return await searchStocksFromFMP(query);
 }
 
 
