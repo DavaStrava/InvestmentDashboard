@@ -138,29 +138,19 @@ async function fetchHistoricalDataFromFMP(symbol: string, range: string): Promis
       // Process intraday data
       if (!Array.isArray(data) || data.length === 0) return null;
       
-      return data.slice(0, 78).reverse().map((item: any) => {
-        const volume = validateNumeric(item.volume, `${symbol}.volume`, 0);
-        const timestamp = new Date(item.date).getTime();
-        
-        // Log potential volume anomalies for NASDAQ intraday
-        if (symbol === '^IXIC' && volume > 1000000000) {
-          logger.warn('VOLUME_ANOMALY', `High intraday volume for ${symbol} at ${item.date}: ${volume.toLocaleString()}`);
-        }
-        
-        return {
-          timestamp,
-          time: new Date(item.date).toLocaleTimeString("en-US", { 
-            hour: "numeric", 
-            minute: "2-digit",
-            hour12: false 
-          }),
-          price: item.close,
-          open: item.open,
-          high: item.high,
-          low: item.low,
-          volume
-        };
-      });
+      return data.slice(0, 78).reverse().map((item: any) => ({
+        timestamp: new Date(item.date).getTime(),
+        time: new Date(item.date).toLocaleTimeString("en-US", { 
+          hour: "numeric", 
+          minute: "2-digit",
+          hour12: false 
+        }),
+        price: item.close,
+        open: item.open,
+        high: item.high,
+        low: item.low,
+        volume: validateNumeric(item.volume, `${symbol}.volume`, 0)
+      }));
     } else {
       // Process daily data
       if (!data.historical || !Array.isArray(data.historical)) return null;
@@ -169,18 +159,9 @@ async function fetchHistoricalDataFromFMP(symbol: string, range: string): Promis
         let volume = validateNumeric(item.volume, `${symbol}.volume`, 0);
         const timestamp = new Date(item.date).getTime();
         
-        // Data validation for NASDAQ volume anomalies
-        if (symbol === '^IXIC') {
-          // Log high volumes
-          if (volume > 10000000000) {
-            logger.warn('VOLUME_ANOMALY', `High daily volume for ${symbol} on ${item.date}: ${volume.toLocaleString()}`);
-            
-            // Cap extremely high volumes that indicate data errors (>25B)
-            if (volume > 25000000000) {
-              logger.error('VOLUME_ERROR', `Data error detected - capping volume for ${symbol} on ${item.date}: ${volume.toLocaleString()} -> 15B`);
-              volume = 15000000000; // Set to typical high volume day
-            }
-          }
+        // Log volume information for NASDAQ
+        if (symbol === '^IXIC' && volume > 10000000000) {
+          logger.info('VOLUME_INFO', `High daily volume for ${symbol} on ${item.date}: ${volume.toLocaleString()}`);
         }
         
         return {
