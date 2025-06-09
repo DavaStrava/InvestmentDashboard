@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface StockPrediction {
@@ -31,21 +32,15 @@ export interface StockPrediction {
   };
 }
 
-interface MultiTimeframeData {
-  intraday: any[];
-  weekly: any[];
-  monthly: any[];
-}
-
 export async function generateStockPrediction(
   symbol: string,
   currentPrice: number,
-  historicalData: any[] | MultiTimeframeData,
+  historicalData: any[] | { intraday: any[], weekly: any[], monthly: any[] },
   marketData?: any
 ): Promise<StockPrediction> {
   try {
     // Handle multi-timeframe data structure
-    let intradayData: any[], weeklyData: any[], monthlyData: any[];
+    let intradayData, weeklyData, monthlyData;
     if (Array.isArray(historicalData)) {
       // Legacy format - use as intraday
       intradayData = historicalData;
@@ -146,195 +141,171 @@ Use common technical analysis conventions. If you must estimate a value, include
 `;
 
     const requestPayload = {
-      model: "gpt-4o" as const,
+      model: "gpt-4o",
       messages: [
         {
-          role: "system" as const,
+          role: "system",
           content: "You are a professional financial analyst. Use only the data and indicators provided or computed. If you must estimate a value (e.g., support level), include a \"note\":\"estimated\" for that field. Always respond in valid JSON format."
         },
         {
-          role: "user" as const,
+          role: "user",
           content: prompt
         }
       ],
-      response_format: { type: "json_object" as const },
-      temperature: 0.3,
+      response_format: { type: "json_object" },
+      temperature: 0.1, // Minimal temperature to reduce hallucinations
     };
 
-    console.log("=== AI ANALYSIS REQUEST ===");
+    console.log("=== OPENAI REQUEST ===");
     console.log(JSON.stringify(requestPayload, null, 2));
 
     const response = await openai.chat.completions.create(requestPayload);
 
-    console.log("=== AI ANALYSIS RESPONSE ===");
+    console.log("=== OPENAI RESPONSE ===");
     console.log(JSON.stringify(response, null, 2));
 
-    const content = response.choices[0].message.content;
-    if (!content) {
-      throw new Error("No content in AI response");
-    }
+    const analysis = JSON.parse(response.choices[0].message.content || "{}");
 
     console.log("=== PARSED ANALYSIS ===");
-    const analysis = JSON.parse(content);
     console.log(JSON.stringify(analysis, null, 2));
 
-    // Transform the AI response to match our interface
-    const prediction: StockPrediction = {
-      symbol,
-      currentPrice,
-      predictions: [
-        {
-          timeframe: "1 Day",
+    // Handle both old and new JSON formats
+    let convertedPredictions = [];
+    let convertedTechnical = {};
+
+    // Check if using new simplified format
+    if (analysis.predictions && analysis.predictions["1d"]) {
+      // New format with 1d, 1w, 1m keys
+      if (analysis.predictions["1d"]) {
+        convertedPredictions.push({
+          timeframe: "1 day",
           predictedPrice: analysis.predictions["1d"].point,
           confidence: analysis.predictions["1d"].confidence,
-          direction: analysis.technical.trend === "up" ? "up" : analysis.technical.trend === "down" ? "down" : "sideways",
-          reasoning: `Based on ${intradayData.length} intraday data points with RSI of ${rsi.toFixed(1)} and recent ${analysis.technical.trend} trend.`,
+          direction: analysis.technical?.trend === "up" ? "up" : analysis.technical?.trend === "down" ? "down" : "sideways",
+          reasoning: `Based on pre-computed indicators and price patterns`,
           confidenceInterval: {
             low: analysis.predictions["1d"].low,
-            high: analysis.predictions["1d"].high,
-          },
-        },
-        {
-          timeframe: "1 Week",
+            high: analysis.predictions["1d"].high
+          }
+        });
+      }
+      if (analysis.predictions["1w"]) {
+        convertedPredictions.push({
+          timeframe: "1 week",
           predictedPrice: analysis.predictions["1w"].point,
           confidence: analysis.predictions["1w"].confidence,
-          direction: weeklyTrend !== 'N/A' && parseFloat(weeklyTrend) > 0 ? "up" : weeklyTrend !== 'N/A' && parseFloat(weeklyTrend) < 0 ? "down" : "sideways",
-          reasoning: `Weekly trend of ${weeklyTrend}% suggests ${analysis.technical.trend} momentum with support at $${support.toFixed(2)}.`,
+          direction: analysis.technical?.trend === "up" ? "up" : analysis.technical?.trend === "down" ? "down" : "sideways",
+          reasoning: `Based on weekly trend analysis and support/resistance levels`,
           confidenceInterval: {
             low: analysis.predictions["1w"].low,
-            high: analysis.predictions["1w"].high,
-          },
-        },
-        {
-          timeframe: "1 Month",
+            high: analysis.predictions["1w"].high
+          }
+        });
+      }
+      if (analysis.predictions["1m"]) {
+        convertedPredictions.push({
+          timeframe: "1 month",
           predictedPrice: analysis.predictions["1m"].point,
           confidence: analysis.predictions["1m"].confidence,
-          direction: monthlyTrend !== 'N/A' && parseFloat(monthlyTrend) > 0 ? "up" : monthlyTrend !== 'N/A' && parseFloat(monthlyTrend) < 0 ? "down" : "sideways",
-          reasoning: `Monthly trend of ${monthlyTrend}% indicates longer-term ${analysis.recommendation} recommendation with resistance at $${resistance.toFixed(2)}.`,
+          direction: analysis.technical?.trend === "up" ? "up" : analysis.technical?.trend === "down" ? "down" : "sideways",
+          reasoning: `Based on longer-term technical indicators and market patterns`,
           confidenceInterval: {
             low: analysis.predictions["1m"].low,
-            high: analysis.predictions["1m"].high,
-          },
-        },
-      ],
-      technicalAnalysis: {
-        trend: analysis.technical.trend === "up" ? "bullish" : analysis.technical.trend === "down" ? "bearish" : "neutral",
-        support: analysis.technical.support_levels[0] || support,
-        resistance: analysis.technical.resistance_levels[0] || resistance,
-        rsi: rsi.toFixed(1),
-        recommendation: analysis.recommendation,
-      },
-      generatedAt: new Date().toISOString(),
-      dataLimitations: {
-        hasLimitedHistoricalData: intradayData.length < 50,
-        isIntradayOnly: weeklyData.length === 0 && monthlyData.length === 0,
-        longerTermPredictionsUncertain: monthlyData.length < 20,
-      },
+            high: analysis.predictions["1m"].high
+          }
+        });
+      }
+
+      convertedTechnical = {
+        trend: analysis.technical?.trend === "up" ? "bullish" : analysis.technical?.trend === "down" ? "bearish" : "neutral",
+        support: analysis.technical?.support_levels?.[0] || 0,
+        resistance: analysis.technical?.resistance_levels?.[0] || 0,
+        rsi: rsi > 70 ? "overbought" : rsi < 30 ? "oversold" : "neutral",
+        recommendation: analysis.recommendation || "hold"
+      };
+    } else if (Array.isArray(analysis.predictions)) {
+      // Old format with array of predictions
+      convertedPredictions = analysis.predictions;
+      convertedTechnical = analysis.technicalAnalysis || {
+        trend: "neutral" as const,
+        support: 0,
+        resistance: 0,
+        rsi: "neutral",
+        recommendation: "hold"
+      };
+    }
+
+    // Detect data limitations for dynamic warnings
+    const dataLimitations = {
+      hasLimitedHistoricalData: historicalData.length < 100, // Less than full day
+      isIntradayOnly: true, // Currently only using 1-day intraday data
+      longerTermPredictionsUncertain: historicalData.length < 200 // Insufficient for weekly/monthly
     };
 
-    return prediction;
-  } catch (error) {
-    console.error("AI prediction error:", error);
-    
-    // Fallback prediction using technical analysis only
-    const prices = Array.isArray(historicalData) ? historicalData.map(d => d.price) : historicalData.intraday.map(d => d.price);
-    const recentPrices = prices.slice(-10);
-    const support = Math.min(...recentPrices);
-    const resistance = Math.max(...recentPrices);
-    
     return {
       symbol,
       currentPrice,
-      predictions: [
-        {
-          timeframe: "1 Day",
-          predictedPrice: currentPrice * (1 + (Math.random() - 0.5) * 0.02),
-          confidence: 50,
-          direction: "sideways",
-          reasoning: "Technical analysis fallback due to AI service unavailability.",
-          confidenceInterval: {
-            low: currentPrice * 0.99,
-            high: currentPrice * 1.01,
-          },
-        },
-        {
-          timeframe: "1 Week", 
-          predictedPrice: currentPrice * (1 + (Math.random() - 0.5) * 0.05),
-          confidence: 40,
-          direction: "sideways",
-          reasoning: "Limited technical indicators available.",
-          confidenceInterval: {
-            low: currentPrice * 0.95,
-            high: currentPrice * 1.05,
-          },
-        },
-        {
-          timeframe: "1 Month",
-          predictedPrice: currentPrice * (1 + (Math.random() - 0.5) * 0.10),
-          confidence: 30,
-          direction: "sideways",
-          reasoning: "Long-term prediction requires more comprehensive analysis.",
-          confidenceInterval: {
-            low: currentPrice * 0.90,
-            high: currentPrice * 1.10,
-          },
-        },
-      ],
-      technicalAnalysis: {
-        trend: "neutral",
-        support: support,
-        resistance: resistance,
-        rsi: "50.0",
-        recommendation: "hold",
-      },
+      predictions: convertedPredictions,
+      technicalAnalysis: convertedTechnical,
       generatedAt: new Date().toISOString(),
-      dataLimitations: {
-        hasLimitedHistoricalData: true,
-        isIntradayOnly: true,
-        longerTermPredictionsUncertain: true,
-      },
+      dataLimitations
     };
+  } catch (error) {
+    console.error("OpenAI prediction error:", error);
+    throw new Error("Failed to generate stock prediction");
   }
 }
 
 export async function analyzeTrendConfidence(
   symbol: string,
-  prediction: any,
-  marketData?: any
-): Promise<number> {
+  priceData: number[],
+  volumeData: number[]
+): Promise<{
+  trendStrength: number;
+  volatility: number;
+  momentum: string;
+  riskLevel: "low" | "medium" | "high";
+}> {
   try {
     const prompt = `
-Given this stock prediction for ${symbol}, rate the confidence level (0-100) based on:
-- Data quality and completeness
-- Technical indicator alignment
-- Market conditions
-- Prediction timeframe
+Analyze the trend confidence for stock ${symbol} based on this data:
 
-Prediction: ${JSON.stringify(prediction)}
-Market Context: ${marketData ? JSON.stringify(marketData) : 'Limited market data'}
+Recent Prices: ${priceData.slice(-10).join(', ')}
+Recent Volumes: ${volumeData.slice(-10).join(', ')}
 
-Respond with just a number between 0-100.
+Provide a technical analysis focused on:
+1. Trend strength (0-100 scale)
+2. Price volatility assessment
+3. Momentum direction
+4. Overall risk level
+
+Return JSON with: {"trendStrength": number, "volatility": number, "momentum": string, "riskLevel": string}
 `;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
-          role: "system" as const,
-          content: "You are a risk assessment expert. Provide only a numerical confidence score."
+          role: "system",
+          content: "You are a quantitative analyst specializing in trend analysis and risk assessment. Provide precise numerical assessments."
         },
         {
-          role: "user" as const,
+          role: "user",
           content: prompt
         }
       ],
-      temperature: 0.1,
+      response_format: { type: "json_object" },
+      temperature: 0.2,
     });
 
-    const confidence = parseInt(response.choices[0].message.content || "50");
-    return Math.max(0, Math.min(100, confidence));
+    return JSON.parse(response.choices[0].message.content || "{}");
   } catch (error) {
-    console.error("Confidence analysis error:", error);
-    return 50; // Default moderate confidence
+    console.error("Trend analysis error:", error);
+    return {
+      trendStrength: 50,
+      volatility: 50,
+      momentum: "neutral",
+      riskLevel: "medium"
+    };
   }
 }
