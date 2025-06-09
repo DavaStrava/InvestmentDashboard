@@ -166,12 +166,21 @@ async function fetchHistoricalDataFromFMP(symbol: string, range: string): Promis
       if (!data.historical || !Array.isArray(data.historical)) return null;
       
       return data.historical.reverse().map((item: any) => {
-        const volume = validateNumeric(item.volume, `${symbol}.volume`, 0);
+        let volume = validateNumeric(item.volume, `${symbol}.volume`, 0);
         const timestamp = new Date(item.date).getTime();
         
-        // Log potential volume anomalies for NASDAQ daily data
-        if (symbol === '^IXIC' && volume > 10000000000) {
-          logger.warn('VOLUME_ANOMALY', `High daily volume for ${symbol} on ${item.date}: ${volume.toLocaleString()}`);
+        // Data validation for NASDAQ volume anomalies
+        if (symbol === '^IXIC') {
+          // Log high volumes
+          if (volume > 10000000000) {
+            logger.warn('VOLUME_ANOMALY', `High daily volume for ${symbol} on ${item.date}: ${volume.toLocaleString()}`);
+            
+            // Cap extremely high volumes that indicate data errors (>25B)
+            if (volume > 25000000000) {
+              logger.error('VOLUME_ERROR', `Data error detected - capping volume for ${symbol} on ${item.date}: ${volume.toLocaleString()} -> 15B`);
+              volume = 15000000000; // Set to typical high volume day
+            }
+          }
         }
         
         return {
