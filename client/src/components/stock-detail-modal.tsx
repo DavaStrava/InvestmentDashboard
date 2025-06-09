@@ -11,9 +11,10 @@ import { X } from "lucide-react";
 interface StockDetailModalProps {
   symbol: string;
   onClose: () => void;
+  isIndex?: boolean;
 }
 
-export default function StockDetailModal({ symbol, onClose }: StockDetailModalProps) {
+export default function StockDetailModal({ symbol, onClose, isIndex = false }: StockDetailModalProps) {
   const { data: quote, isLoading } = useQuery({
     queryKey: [`/api/stocks/${symbol}/quote`],
     enabled: !!symbol,
@@ -114,12 +115,14 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
             </DialogHeader>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-              <div className="lg:col-span-2 xl:col-span-1 order-1">
+              <div className={`${isIndex ? 'lg:col-span-2' : 'lg:col-span-2 xl:col-span-1'} order-1`}>
                 <PriceChart symbol={symbol} />
               </div>
-              <div className="lg:col-span-2 xl:col-span-1 order-2">
-                <AIPrediction symbol={symbol} />
-              </div>
+              {!isIndex && (
+                <div className="lg:col-span-2 xl:col-span-1 order-2">
+                  <AIPrediction symbol={symbol} />
+                </div>
+              )}
             </div>
 
             <div className="border-t pt-6">

@@ -2,8 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber, formatPercent, getChangeColor } from "@/lib/utils";
+import { useState } from "react";
+import StockDetailModal from "./stock-detail-modal";
 
 export default function MarketOverview() {
+  const [selectedIndex, setSelectedIndex] = useState<string | null>(null);
+  
   const { data: indices, isLoading } = useQuery({
     queryKey: ["/api/market/indices"],
     refetchInterval: 60000, // Refresh every minute
@@ -93,7 +97,11 @@ export default function MarketOverview() {
                         United States
                       </h4>
                       {usIndices.map((index: any) => (
-                        <div key={index.symbol} className="flex items-center justify-between">
+                        <div 
+                          key={index.symbol} 
+                          className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => setSelectedIndex(index.symbol)}
+                        >
                           <div>
                             <div className="flex items-center space-x-2">
                               <p className="font-medium text-gray-900">{index.name}</p>
@@ -135,7 +143,11 @@ export default function MarketOverview() {
                         International
                       </h4>
                       {intlIndices.map((index: any) => (
-                        <div key={index.symbol} className="flex items-center justify-between">
+                        <div 
+                          key={index.symbol} 
+                          className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => setSelectedIndex(index.symbol)}
+                        >
                           <div>
                             <div className="flex items-center space-x-2">
                               <p className="font-medium text-gray-900">{index.name}</p>
@@ -178,6 +190,15 @@ export default function MarketOverview() {
           </div>
         )}
       </CardContent>
+      
+      {/* Index Detail Modal */}
+      {selectedIndex && (
+        <StockDetailModal
+          symbol={selectedIndex}
+          onClose={() => setSelectedIndex(null)}
+          isIndex={true}
+        />
+      )}
     </Card>
   );
 }
