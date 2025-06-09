@@ -29,20 +29,20 @@ async function fetchStockQuoteFromFMP(symbol: string): Promise<StockQuote | null
     return {
       symbol: quoteData.symbol,
       companyName: profileData?.companyName || quoteData.name || symbol,
-      price: quoteData.price,
-      change: quoteData.change || 0,
-      changePercent: quoteData.changesPercentage || 0,
-      volume: quoteData.volume || 0,
-      marketCap: profileData?.mktCap,
-      peRatio: metricsData?.peRatio,
+      price: parseFloat(quoteData.price) || 0,
+      change: parseFloat(quoteData.change) || 0,
+      changePercent: parseFloat(quoteData.changesPercentage) || 0,
+      volume: parseInt(quoteData.volume) || 0,
+      marketCap: profileData?.mktCap ? parseInt(profileData.mktCap) : undefined,
+      peRatio: metricsData?.peRatio ? parseFloat(metricsData.peRatio) : undefined,
       earningsDate: profileData?.lastDiv,
-      high52Week: quoteData.yearHigh,
-      low52Week: quoteData.yearLow,
-      avgVolume: quoteData.avgVolume,
-      dividendYield: profileData?.lastDiv ? (profileData.lastDiv / quoteData.price * 100) : undefined,
-      eps: quoteData.eps,
-      beta: profileData?.beta,
-      roe: metricsData?.roe,
+      high52Week: quoteData.yearHigh ? parseFloat(quoteData.yearHigh) : undefined,
+      low52Week: quoteData.yearLow ? parseFloat(quoteData.yearLow) : undefined,
+      avgVolume: quoteData.avgVolume ? parseInt(quoteData.avgVolume) : undefined,
+      dividendYield: profileData?.lastDiv && quoteData.price ? (parseFloat(profileData.lastDiv) / parseFloat(quoteData.price) * 100) : undefined,
+      eps: quoteData.eps ? parseFloat(quoteData.eps) : undefined,
+      beta: profileData?.beta ? parseFloat(profileData.beta) : undefined,
+      roe: metricsData?.roe ? parseFloat(metricsData.roe) : undefined,
     };
   } catch (error) {
     console.error(`FMP error for ${symbol}:`, error);
@@ -402,27 +402,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Market status helper function
+  function isMarketOpen(): boolean {
+    const now = new Date();
+    const easternTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const day = easternTime.getDay(); // 0 = Sunday, 6 = Saturday
+    const hours = easternTime.getHours();
+    const minutes = easternTime.getMinutes();
+    const totalMinutes = hours * 60 + minutes;
+    
+    // Market is closed on weekends
+    if (day === 0 || day === 6) return false;
+    
+    // Market hours: 9:30 AM to 4:00 PM ET (570 to 960 minutes)
+    return totalMinutes >= 570 && totalMinutes < 960;
+  }
+
   // Market indices endpoint using FMP
   app.get("/api/market/indices", async (req, res) => {
     try {
       const indices = [
-        { symbol: "SPY", name: "S&P 500" },
-        { symbol: "QQQ", name: "NASDAQ-100" },
-        { symbol: "IWM", name: "Russell 2000" },
-        { symbol: "VTI", name: "Total Stock Market" }
+        { symbol: "SPY", name: "S&P 500", region: "US" },
+        { symbol: "QQQ", name: "NASDAQ-100", region: "US" },
+        { symbol: "IWM", name: "Russell 2000", region: "US" },
+        { symbol: "VTI", name: "Total Stock Market", region: "US" }
       ];
 
+      const marketOpen = isMarketOpen();
       const marketData = [];
+      
       for (const index of indices) {
         const quote = await fetchStockQuote(index.symbol);
         if (quote) {
           marketData.push({
             symbol: index.symbol,
             name: index.name,
+            region: index.region,
             price: quote.price,
             change: quote.change,
             changePercent: quote.changePercent,
             volume: quote.volume,
+            marketOpen,
+            isFutures: !marketOpen,
           });
         }
       }
