@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertHoldingSchema, insertWatchlistSchema, type StockQuote, type PortfolioSummary, type HoldingWithQuote } from "@shared/schema";
 import { z } from "zod";
+import { logger, validateNumeric, timeAsyncOperation } from "./logger";
 
 // FMP API Configuration
 const FMP_API_KEY = process.env.FMP_API_KEY;
@@ -10,46 +11,64 @@ const FMP_BASE_URL = 'https://financialmodelingprep.com/api';
 
 // FMP API implementation for stock quotes
 async function fetchStockQuoteFromFMP(symbol: string): Promise<StockQuote | null> {
-  if (!FMP_API_KEY) return null;
-  
-  try {
-    // Get real-time quote, company profile, and key metrics
-    const [quoteResponse, profileResponse, metricsResponse] = await Promise.all([
-      fetch(`${FMP_BASE_URL}/v3/quote/${symbol}?apikey=${FMP_API_KEY}`),
-      fetch(`${FMP_BASE_URL}/v3/profile/${symbol}?apikey=${FMP_API_KEY}`),
-      fetch(`${FMP_BASE_URL}/v3/key-metrics/${symbol}?period=annual&limit=1&apikey=${FMP_API_KEY}`)
-    ]);
-    
-    const [quoteData] = await quoteResponse.json();
-    const [profileData] = await profileResponse.json();
-    const [metricsData] = await metricsResponse.json();
-    
-
-    
-    if (!quoteData || !quoteData.price) return null;
-    
-    return {
-      symbol: quoteData.symbol,
-      companyName: profileData?.companyName || quoteData.name || symbol,
-      price: parseFloat(quoteData.price) || 0,
-      change: parseFloat(quoteData.change) || 0,
-      changePercent: parseFloat(quoteData.changesPercentage) || 0,
-      volume: parseInt(quoteData.volume) || 0,
-      marketCap: profileData?.mktCap ? parseInt(profileData.mktCap) : undefined,
-      peRatio: metricsData?.peRatio ? parseFloat(metricsData.peRatio) : undefined,
-      earningsDate: profileData?.lastDiv,
-      high52Week: quoteData.yearHigh ? parseFloat(quoteData.yearHigh) : undefined,
-      low52Week: quoteData.yearLow ? parseFloat(quoteData.yearLow) : undefined,
-      avgVolume: quoteData.avgVolume ? parseInt(quoteData.avgVolume) : undefined,
-      dividendYield: profileData?.lastDiv && quoteData.price ? (parseFloat(profileData.lastDiv) / parseFloat(quoteData.price) * 100) : undefined,
-      eps: quoteData.eps ? parseFloat(quoteData.eps) : undefined,
-      beta: profileData?.beta ? parseFloat(profileData.beta) : undefined,
-      roe: metricsData?.roe ? parseFloat(metricsData.roe) : undefined,
-    };
-  } catch (error) {
-    console.error(`FMP error for ${symbol}:`, error);
+  if (!FMP_API_KEY) {
+    logger.error('FMP_CONFIG', 'FMP API key not configured');
     return null;
   }
+  
+  return await timeAsyncOperation(`fetchStockQuote-${symbol}`, async () => {
+    try {
+      logger.apiRequest('GET', `FMP quote/profile/metrics for ${symbol}`);
+      
+      // Get real-time quote, company profile, and key metrics
+      const [quoteResponse, profileResponse, metricsResponse] = await Promise.all([
+        fetch(`${FMP_BASE_URL}/v3/quote/${symbol}?apikey=${FMP_API_KEY}`),
+        fetch(`${FMP_BASE_URL}/v3/profile/${symbol}?apikey=${FMP_API_KEY}`),
+        fetch(`${FMP_BASE_URL}/v3/key-metrics/${symbol}?period=annual&limit=1&apikey=${FMP_API_KEY}`)
+      ]);
+      
+      const [quoteData] = await quoteResponse.json();
+      const [profileData] = await profileResponse.json();
+      const [metricsData] = await metricsResponse.json();
+      
+      logger.apiResponse(`FMP-${symbol}`, quoteResponse.status, {
+        hasQuote: !!quoteData,
+        hasProfile: !!profileData,
+        hasMetrics: !!metricsData
+      });
+      
+      if (!quoteData || !quoteData.price) {
+        logger.warn('FMP_DATA', `No valid quote data for ${symbol}`, quoteData);
+        return null;
+      }
+      
+      const stockQuote: StockQuote = {
+        symbol: quoteData.symbol,
+        companyName: profileData?.companyName || quoteData.name || symbol,
+        price: validateNumeric(quoteData.price, `${symbol}.price`),
+        change: validateNumeric(quoteData.change, `${symbol}.change`),
+        changePercent: validateNumeric(quoteData.changesPercentage, `${symbol}.changePercent`),
+        volume: validateNumeric(quoteData.volume, `${symbol}.volume`),
+        marketCap: profileData?.mktCap ? validateNumeric(profileData.mktCap, `${symbol}.marketCap`) : undefined,
+        peRatio: metricsData?.peRatio ? validateNumeric(metricsData.peRatio, `${symbol}.peRatio`) : undefined,
+        earningsDate: profileData?.lastDiv,
+        high52Week: quoteData.yearHigh ? validateNumeric(quoteData.yearHigh, `${symbol}.high52Week`) : undefined,
+        low52Week: quoteData.yearLow ? validateNumeric(quoteData.yearLow, `${symbol}.low52Week`) : undefined,
+        avgVolume: quoteData.avgVolume ? validateNumeric(quoteData.avgVolume, `${symbol}.avgVolume`) : undefined,
+        dividendYield: profileData?.lastDiv && quoteData.price ? 
+          validateNumeric((parseFloat(profileData.lastDiv) / parseFloat(quoteData.price) * 100), `${symbol}.dividendYield`) : undefined,
+        eps: quoteData.eps ? validateNumeric(quoteData.eps, `${symbol}.eps`) : undefined,
+        beta: profileData?.beta ? validateNumeric(profileData.beta, `${symbol}.beta`) : undefined,
+        roe: metricsData?.roe ? validateNumeric(metricsData.roe, `${symbol}.roe`) : undefined,
+      };
+      
+      logger.stockQuote(symbol, stockQuote);
+      return stockQuote;
+    } catch (error) {
+      logger.error('FMP_ERROR', `Failed to fetch quote for ${symbol}`, error);
+      return null;
+    }
+  });
 }
 
 // Main quote function using FMP as primary source
@@ -339,22 +358,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Watchlist endpoints
   app.get("/api/watchlist", async (req, res) => {
     try {
+      logger.info('WATCHLIST_REQUEST', 'Fetching watchlist data');
       const watchlist = await storage.getWatchlist();
+      logger.debug('WATCHLIST_STORAGE', `Retrieved ${watchlist.length} items from storage`);
+      
       const watchlistWithQuotes = [];
 
       for (const item of watchlist) {
         const quote = await fetchStockQuote(item.symbol);
+        
         if (quote) {
-          watchlistWithQuotes.push({
+          const enhancedItem = {
             ...item,
-            currentPrice: quote.price || 0,
-            change: quote.change || 0,
-            changePercent: quote.changePercent || 0,
-            dailyChange: quote.change || 0,
-            dailyChangePercent: quote.changePercent || 0,
-            volume: quote.volume || 0,
+            currentPrice: validateNumeric(quote.price, `watchlist.${item.symbol}.currentPrice`),
+            change: validateNumeric(quote.change, `watchlist.${item.symbol}.change`),
+            changePercent: validateNumeric(quote.changePercent, `watchlist.${item.symbol}.changePercent`),
+            dailyChange: validateNumeric(quote.change, `watchlist.${item.symbol}.dailyChange`),
+            dailyChangePercent: validateNumeric(quote.changePercent, `watchlist.${item.symbol}.dailyChangePercent`),
+            volume: validateNumeric(quote.volume, `watchlist.${item.symbol}.volume`),
+          };
+          
+          logger.debug('WATCHLIST_ITEM', `Enhanced ${item.symbol}`, {
+            price: enhancedItem.currentPrice,
+            changePercent: enhancedItem.dailyChangePercent,
+            hasNaN: isNaN(enhancedItem.dailyChangePercent)
           });
+          
+          watchlistWithQuotes.push(enhancedItem);
         } else {
+          logger.warn('WATCHLIST_NO_QUOTE', `No quote data for ${item.symbol}`);
           watchlistWithQuotes.push({
             ...item,
             currentPrice: 0,
@@ -367,8 +399,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      logger.watchlistData(watchlistWithQuotes);
       res.json(watchlistWithQuotes);
     } catch (error) {
+      logger.error('WATCHLIST_ERROR', 'Failed to fetch watchlist', error);
       res.status(500).json({ message: "Failed to fetch watchlist" });
     }
   });
@@ -418,10 +452,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const totalMinutes = hours * 60 + minutes;
     
     // Market is closed on weekends
-    if (day === 0 || day === 6) return false;
+    if (day === 0 || day === 6) {
+      logger.marketStatus(false, `Weekend (Day ${day})`);
+      return false;
+    }
     
     // Market hours: 9:30 AM to 4:00 PM ET (570 to 960 minutes)
-    return totalMinutes >= 570 && totalMinutes < 960;
+    const isOpen = totalMinutes >= 570 && totalMinutes < 960;
+    logger.marketStatus(isOpen, `${hours}:${minutes.toString().padStart(2, '0')} ET`);
+    return isOpen;
   }
 
   // Market indices endpoint using FMP
