@@ -4,6 +4,9 @@ import { storage } from "./storage";
 import { insertHoldingSchema, insertWatchlistSchema, type StockQuote, type PortfolioSummary, type HoldingWithQuote } from "@shared/schema";
 import { z } from "zod";
 import { logger, validateNumeric, timeAsyncOperation } from "./logger";
+import multer from "multer";
+import csv from "csv-parser";
+import { Readable } from "stream";
 
 // FMP API Configuration
 const FMP_API_KEY = process.env.FMP_API_KEY;
@@ -189,6 +192,33 @@ async function fetchHistoricalData(symbol: string, range: string): Promise<any> 
   return await fetchHistoricalDataFromFMP(symbol, range);
 }
 
+// Configure multer for file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed'));
+    }
+  }
+});
+
+// CSV parsing helper function
+async function parseCSVBuffer(buffer: Buffer): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    const results: any[] = [];
+    const stream = Readable.from(buffer.toString());
+    
+    stream
+      .pipe(csv())
+      .on('data', (data) => results.push(data))
+      .on('end', () => resolve(results))
+      .on('error', reject);
+  });
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Stock quote endpoint
   app.get("/api/stocks/:symbol/quote", async (req, res) => {
@@ -362,6 +392,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete holding" });
+    }
+  });
+
+  // CSV Portfolio Upload endpoint
+  app.post("/api/portfolio/upload", upload.single('csvFile'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No CSV file uploaded" });
+      }
+
+      logger.info('CSV_UPLOAD', `Processing CSV file: ${req.file.originalname}`);
+      
+      // Parse CSV data
+      const csvData = await parseCSVBuffer(req.file.buffer);
+      
+      if (csvData.length === 0) {
+        return res.status(400).json({ message: "CSV file is empty" });
+      }
+
+      // Expected CSV format: symbol, companyName, shares, avgCostPerShare
+      // Alternative headers: Symbol, Company, Quantity, Price, Cost, Average Cost
+      const processedHoldings: any[] = [];
+      const errors: string[] = [];
+      let successCount = 0;
+
+      for (let index = 0; index < csvData.length; index++) {
+        const row = csvData[index];
+        try {
+          // Normalize column names (case insensitive, flexible matching)
+          const normalizedRow: any = {};
+          Object.keys(row).forEach(key => {
+            const normalizedKey = key.toLowerCase().trim();
+            normalizedRow[normalizedKey] = row[key];
+          });
+
+          // Extract data with flexible column matching
+          const symbol = normalizedRow.symbol || normalizedRow.ticker || normalizedRow.stock;
+          const companyName = normalizedRow.companyname || normalizedRow.company || normalizedRow.name || symbol;
+          const shares = normalizedRow.shares || normalizedRow.quantity || normalizedRow.qty;
+          const avgCostPerShare = normalizedRow.avgcostpershare || normalizedRow.averagecost || 
+                                normalizedRow.price || normalizedRow.cost || normalizedRow.avgcost;
+
+          if (!symbol || !shares || !avgCostPerShare) {
+            errors.push(`Row ${index + 1}: Missing required fields (symbol, shares, avgCostPerShare)`);
+            continue;
+          }
+
+          // Validate and convert data types
+          const sharesNum = parseFloat(shares);
+          const costNum = parseFloat(avgCostPerShare);
+
+          if (isNaN(sharesNum) || isNaN(costNum) || sharesNum <= 0 || costNum <= 0) {
+            errors.push(`Row ${index + 1}: Invalid numeric values for shares or cost`);
+            continue;
+          }
+
+          // Create holding object
+          const holdingData = {
+            symbol: symbol.toString().toUpperCase().trim(),
+            companyName: companyName.toString().trim(),
+            shares: sharesNum.toString(),
+            avgCostPerShare: costNum.toString()
+          };
+
+          // Validate against schema
+          const validation = insertHoldingSchema.safeParse(holdingData);
+          if (!validation.success) {
+            errors.push(`Row ${index + 1}: ${validation.error.issues.map(i => i.message).join(', ')}`);
+            continue;
+          }
+
+          // Check for duplicates in current batch
+          const isDuplicate = processedHoldings.some(h => h.symbol === holdingData.symbol);
+          if (isDuplicate) {
+            errors.push(`Row ${index + 1}: Duplicate symbol ${holdingData.symbol} in CSV`);
+            continue;
+          }
+
+          // Check if symbol already exists in database
+          const existingHoldings = await storage.getHoldings();
+          const existsInDb = existingHoldings.some(h => h.symbol === holdingData.symbol);
+          if (existsInDb) {
+            errors.push(`Row ${index + 1}: Symbol ${holdingData.symbol} already exists in portfolio`);
+            continue;
+          }
+
+          processedHoldings.push(holdingData);
+          successCount++;
+
+        } catch (error) {
+          errors.push(`Row ${index + 1}: ${error instanceof Error ? error.message : 'Processing error'}`);
+        }
+      }
+
+      // Insert valid holdings
+      const createdHoldings = [];
+      for (const holdingData of processedHoldings) {
+        try {
+          const created = await storage.createHolding(holdingData);
+          createdHoldings.push(created);
+        } catch (error) {
+          errors.push(`Failed to save ${holdingData.symbol}: ${error instanceof Error ? error.message : 'Database error'}`);
+        }
+      }
+
+      logger.info('CSV_UPLOAD_RESULT', `Processed ${csvData.length} rows, imported ${createdHoldings.length} holdings, ${errors.length} errors`);
+
+      res.json({
+        message: `Successfully imported ${createdHoldings.length} holdings`,
+        imported: createdHoldings.length,
+        totalRows: csvData.length,
+        errors: errors.length > 0 ? errors : undefined,
+        holdings: createdHoldings
+      });
+
+    } catch (error) {
+      logger.error('CSV_UPLOAD_ERROR', 'Failed to process CSV upload', error);
+      res.status(500).json({ 
+        message: "Failed to process CSV file",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

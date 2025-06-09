@@ -8,8 +8,9 @@ import MarketOverview from "@/components/market-overview";
 import StockSearch from "@/components/stock-search";
 import StockDetailModal from "@/components/stock-detail-modal";
 import AddStockModal from "@/components/add-stock-modal";
+import CSVUploadModal from "@/components/csv-upload-modal";
 import { Button } from "@/components/ui/button";
-import { ChartLine, Plus, Bell } from "lucide-react";
+import { ChartLine, Plus, Bell, Upload } from "lucide-react";
 
 type TabType = "portfolio" | "watchlist" | "analytics";
 
