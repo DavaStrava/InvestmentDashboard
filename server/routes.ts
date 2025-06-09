@@ -138,35 +138,55 @@ async function fetchHistoricalDataFromFMP(symbol: string, range: string): Promis
       // Process intraday data
       if (!Array.isArray(data) || data.length === 0) return null;
       
-      return data.slice(0, 78).reverse().map((item: any) => ({
-        timestamp: new Date(item.date).getTime(),
-        time: new Date(item.date).toLocaleTimeString("en-US", { 
-          hour: "numeric", 
-          minute: "2-digit",
-          hour12: false 
-        }),
-        price: item.close,
-        open: item.open,
-        high: item.high,
-        low: item.low,
-        volume: item.volume
-      }));
+      return data.slice(0, 78).reverse().map((item: any) => {
+        const volume = validateNumeric(item.volume, `${symbol}.volume`, 0);
+        const timestamp = new Date(item.date).getTime();
+        
+        // Log potential volume anomalies for NASDAQ intraday
+        if (symbol === '^IXIC' && volume > 1000000000) {
+          logger.warn('VOLUME_ANOMALY', `High intraday volume for ${symbol} at ${item.date}: ${volume.toLocaleString()}`);
+        }
+        
+        return {
+          timestamp,
+          time: new Date(item.date).toLocaleTimeString("en-US", { 
+            hour: "numeric", 
+            minute: "2-digit",
+            hour12: false 
+          }),
+          price: item.close,
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          volume
+        };
+      });
     } else {
       // Process daily data
       if (!data.historical || !Array.isArray(data.historical)) return null;
       
-      return data.historical.reverse().map((item: any) => ({
-        timestamp: new Date(item.date).getTime(),
-        time: new Date(item.date).toLocaleDateString("en-US", { 
-          month: "short", 
-          day: "numeric" 
-        }),
-        price: item.close,
-        open: item.open,
-        high: item.high,
-        low: item.low,
-        volume: item.volume
-      }));
+      return data.historical.reverse().map((item: any) => {
+        const volume = validateNumeric(item.volume, `${symbol}.volume`, 0);
+        const timestamp = new Date(item.date).getTime();
+        
+        // Log potential volume anomalies for NASDAQ daily data
+        if (symbol === '^IXIC' && volume > 10000000000) {
+          logger.warn('VOLUME_ANOMALY', `High daily volume for ${symbol} on ${item.date}: ${volume.toLocaleString()}`);
+        }
+        
+        return {
+          timestamp,
+          time: new Date(item.date).toLocaleDateString("en-US", { 
+            month: "short", 
+            day: "numeric" 
+          }),
+          price: item.close,
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          volume
+        };
+      });
     }
   } catch (error) {
     console.error(`[FMP] Historical data error for ${symbol}:`, error);
