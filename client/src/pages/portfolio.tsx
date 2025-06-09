@@ -18,6 +18,7 @@ export default function Portfolio() {
   const [activeTab, setActiveTab] = useState<TabType>("portfolio");
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
   const [showAddStock, setShowAddStock] = useState(false);
+  const [showCSVUpload, setShowCSVUpload] = useState(false);
 
   const { data: portfolioSummary, isLoading: summaryLoading } = useQuery({
     queryKey: ["/api/portfolio/summary"],
@@ -73,6 +74,18 @@ export default function Portfolio() {
               <div className="hidden lg:block">
                 <StockSearch onSelectStock={setSelectedStock} />
               </div>
+
+              {activeTab === "portfolio" && (
+                <Button
+                  onClick={() => setShowCSVUpload(true)}
+                  size="sm"
+                  variant="outline"
+                  className="h-8 sm:h-9 mr-2"
+                >
+                  <Upload className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Import CSV</span>
+                </Button>
+              )}
 
               <Button
                 onClick={() => setShowAddStock(true)}
@@ -196,6 +209,10 @@ export default function Portfolio() {
 
       {showAddStock && (
         <AddStockModal onClose={() => setShowAddStock(false)} />
+      )}
+
+      {showCSVUpload && (
+        <CSVUploadModal onClose={() => setShowCSVUpload(false)} />
       )}
     </div>
   );
