@@ -467,10 +467,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/market/indices", async (req, res) => {
     try {
       const indices = [
-        { symbol: "SPY", name: "S&P 500", region: "US" },
-        { symbol: "QQQ", name: "NASDAQ-100", region: "US" },
-        { symbol: "IWM", name: "Russell 2000", region: "US" },
-        { symbol: "VTI", name: "Total Stock Market", region: "US" }
+        // US Markets
+        { symbol: "^GSPC", name: "S&P 500", region: "US" },
+        { symbol: "^IXIC", name: "NASDAQ Composite", region: "US" },
+        { symbol: "^DJI", name: "Dow Jones", region: "US" },
+        { symbol: "^RUT", name: "Russell 2000", region: "US" },
+        
+        // International Markets
+        { symbol: "^FTSE", name: "FTSE 100", region: "UK" },
+        { symbol: "^N225", name: "Nikkei 225", region: "Japan" },
+        { symbol: "^GDAXI", name: "DAX", region: "Germany" }
       ];
 
       const marketOpen = isMarketOpen();
