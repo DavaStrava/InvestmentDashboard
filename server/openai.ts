@@ -35,13 +35,31 @@ export interface StockPrediction {
 export async function generateStockPrediction(
   symbol: string,
   currentPrice: number,
-  historicalData: any[],
+  historicalData: any[] | { intraday: any[], weekly: any[], monthly: any[] },
   marketData?: any
 ): Promise<StockPrediction> {
   try {
-    // Pre-compute basic technical indicators
-    const prices = historicalData.map(d => d.price);
-    const volumes = historicalData.map(d => d.volume || 0);
+    // Handle multi-timeframe data structure
+    let intradayData, weeklyData, monthlyData;
+    if (Array.isArray(historicalData)) {
+      // Legacy format - use as intraday
+      intradayData = historicalData;
+      weeklyData = [];
+      monthlyData = [];
+    } else {
+      // New multi-timeframe format
+      intradayData = historicalData.intraday || [];
+      weeklyData = historicalData.weekly || [];
+      monthlyData = historicalData.monthly || [];
+    }
+
+    // Pre-compute basic technical indicators from intraday data
+    const prices = intradayData.map(d => d.price);
+    const volumes = intradayData.map(d => d.volume || 0);
+    
+    // Also get weekly and monthly price trends
+    const weeklyPrices = weeklyData.map(d => d.price);
+    const monthlyPrices = monthlyData.map(d => d.price);
     
     // Calculate SMA20 if enough data
     const sma20 = prices.length >= 20 ? 
@@ -76,18 +94,33 @@ export async function generateStockPrediction(
     }
     const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
     
+    // Calculate weekly and monthly trends
+    const weeklyTrend = weeklyPrices.length >= 2 ? 
+      ((weeklyPrices[weeklyPrices.length - 1] - weeklyPrices[0]) / weeklyPrices[0] * 100).toFixed(2) : 'N/A';
+    const monthlyTrend = monthlyPrices.length >= 2 ? 
+      ((monthlyPrices[monthlyPrices.length - 1] - monthlyPrices[0]) / monthlyPrices[0] * 100).toFixed(2) : 'N/A';
+
     const prompt = `
+Analyze this stock data and provide price predictions:
+
 Current Stock: ${symbol}
 Current Price: $${currentPrice}
-Data Points: ${historicalData.length} five-minute intervals
 
-Pre-computed indicators:
+MULTI-TIMEFRAME ANALYSIS:
+• Intraday (5min): ${intradayData.length} data points
+• Weekly trend: ${weeklyTrend}% over ${weeklyData.length} days
+• Monthly trend: ${monthlyTrend}% over ${monthlyData.length} days
+
+TECHNICAL INDICATORS (from intraday data):
 • SMA_20: ${sma20 ? sma20.toFixed(2) : 'insufficient data'}
 • RSI_14: ${rsi.toFixed(1)}
 • Recent Support: $${support.toFixed(2)}
 • Recent Resistance: $${resistance.toFixed(2)}
-• Price Slope: ${slope.toFixed(4)} (recent trend)
-• Price Range: $${Math.min(...prices).toFixed(2)} - $${Math.max(...prices).toFixed(2)}
+• Short-term Slope: ${slope.toFixed(4)} (recent intraday trend)
+• Intraday Range: $${Math.min(...prices).toFixed(2)} - $${Math.max(...prices).toFixed(2)}
+
+MARKET CONTEXT:
+Consider broader market trends when making predictions. Use weekly/monthly trends to inform longer-term predictions.
 
 Please provide exactly this output:
 {

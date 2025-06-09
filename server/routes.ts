@@ -345,13 +345,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (quote) {
           watchlistWithQuotes.push({
             ...item,
-            currentPrice: quote.price,
-            change: quote.change,
-            changePercent: quote.changePercent,
-            volume: quote.volume,
+            currentPrice: quote.price || 0,
+            change: quote.change || 0,
+            changePercent: quote.changePercent || 0,
+            volume: quote.volume || 0,
           });
         } else {
-          watchlistWithQuotes.push(item);
+          watchlistWithQuotes.push({
+            ...item,
+            currentPrice: 0,
+            change: 0,
+            changePercent: 0,
+            volume: 0,
+          });
         }
       }
 
@@ -458,18 +464,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Stock data not available" });
       }
 
-      // Get historical data for analysis
-      const historicalData = await fetchHistoricalData(symbol, "1D");
-      if (!historicalData || historicalData.length === 0) {
+      // Get multiple timeframes for comprehensive analysis
+      const [intradayData, weeklyData, monthlyData] = await Promise.all([
+        fetchHistoricalData(symbol, "1D"),
+        fetchHistoricalData(symbol, "1W"), 
+        fetchHistoricalData(symbol, "1M")
+      ]);
+
+      if (!intradayData || intradayData.length === 0) {
         return res.status(404).json({ message: "Historical data required for prediction" });
       }
 
-      // Generate AI-powered prediction
+      // Generate AI-powered prediction with multi-timeframe data
       const { generateStockPrediction } = await import("./openai");
       const prediction = await generateStockPrediction(
         symbol,
         quote.price,
-        historicalData
+        {
+          intraday: intradayData,
+          weekly: weeklyData || [],
+          monthly: monthlyData || []
+        }
       );
 
       res.json(prediction);
