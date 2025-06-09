@@ -442,25 +442,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Market status helper function
-  function isMarketOpen(): boolean {
+  // Enhanced market status helper functions
+  function getMarketStatus(exchange: string): { isOpen: boolean; status: string; isFutures: boolean } {
     const now = new Date();
-    const easternTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-    const day = easternTime.getDay(); // 0 = Sunday, 6 = Saturday
-    const hours = easternTime.getHours();
-    const minutes = easternTime.getMinutes();
-    const totalMinutes = hours * 60 + minutes;
     
-    // Market is closed on weekends
-    if (day === 0 || day === 6) {
-      logger.marketStatus(false, `Weekend (Day ${day})`);
-      return false;
+    switch (exchange) {
+      case "US":
+        const easternTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+        const day = easternTime.getDay();
+        const hours = easternTime.getHours();
+        const minutes = easternTime.getMinutes();
+        const totalMinutes = hours * 60 + minutes;
+        
+        if (day === 0 || day === 6) {
+          return { isOpen: false, status: "Weekend", isFutures: true };
+        }
+        
+        const isOpen = totalMinutes >= 570 && totalMinutes < 960; // 9:30 AM to 4:00 PM ET
+        const timeStr = `${hours}:${minutes.toString().padStart(2, '0')} ET`;
+        
+        if (isOpen) {
+          return { isOpen: true, status: `Open until 4:00 PM ET`, isFutures: false };
+        } else if (totalMinutes < 570) {
+          return { isOpen: false, status: `Opens at 9:30 AM ET`, isFutures: true };
+        } else {
+          return { isOpen: false, status: `Closed since 4:00 PM ET`, isFutures: true };
+        }
+        
+      case "UK":
+        const londonTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/London" }));
+        const ukDay = londonTime.getDay();
+        const ukHours = londonTime.getHours();
+        const ukMinutes = londonTime.getMinutes();
+        const ukTotalMinutes = ukHours * 60 + ukMinutes;
+        
+        if (ukDay === 0 || ukDay === 6) {
+          return { isOpen: false, status: "Weekend", isFutures: true };
+        }
+        
+        const ukIsOpen = ukTotalMinutes >= 480 && ukTotalMinutes < 1020; // 8:00 AM to 5:00 PM GMT
+        return { 
+          isOpen: ukIsOpen, 
+          status: ukIsOpen ? "Open" : "Closed", 
+          isFutures: !ukIsOpen 
+        };
+        
+      case "Japan":
+        const tokyoTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
+        const jpDay = tokyoTime.getDay();
+        const jpHours = tokyoTime.getHours();
+        const jpMinutes = tokyoTime.getMinutes();
+        const jpTotalMinutes = jpHours * 60 + jpMinutes;
+        
+        if (jpDay === 0 || jpDay === 6) {
+          return { isOpen: false, status: "Weekend", isFutures: true };
+        }
+        
+        // Japan market: 9:00 AM to 3:00 PM JST with lunch break
+        const jpIsOpen = (jpTotalMinutes >= 540 && jpTotalMinutes < 690) || 
+                         (jpTotalMinutes >= 750 && jpTotalMinutes < 900);
+        return { 
+          isOpen: jpIsOpen, 
+          status: jpIsOpen ? "Open" : "Closed", 
+          isFutures: !jpIsOpen 
+        };
+        
+      case "Germany":
+        const berlinTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
+        const deDay = berlinTime.getDay();
+        const deHours = berlinTime.getHours();
+        const deMinutes = berlinTime.getMinutes();
+        const deTotalMinutes = deHours * 60 + deMinutes;
+        
+        if (deDay === 0 || deDay === 6) {
+          return { isOpen: false, status: "Weekend", isFutures: true };
+        }
+        
+        const deIsOpen = deTotalMinutes >= 540 && deTotalMinutes < 1020; // 9:00 AM to 5:30 PM CET
+        return { 
+          isOpen: deIsOpen, 
+          status: deIsOpen ? "Open" : "Closed", 
+          isFutures: !deIsOpen 
+        };
+        
+      default:
+        return { isOpen: false, status: "Unknown", isFutures: true };
     }
-    
-    // Market hours: 9:30 AM to 4:00 PM ET (570 to 960 minutes)
-    const isOpen = totalMinutes >= 570 && totalMinutes < 960;
-    logger.marketStatus(isOpen, `${hours}:${minutes.toString().padStart(2, '0')} ET`);
-    return isOpen;
   }
 
   // Market indices endpoint using FMP
@@ -468,33 +535,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const indices = [
         // US Markets
-        { symbol: "^GSPC", name: "S&P 500", region: "US" },
-        { symbol: "^IXIC", name: "NASDAQ Composite", region: "US" },
-        { symbol: "^DJI", name: "Dow Jones", region: "US" },
-        { symbol: "^RUT", name: "Russell 2000", region: "US" },
+        { symbol: "^GSPC", name: "S&P 500", region: "US", exchange: "US" },
+        { symbol: "^IXIC", name: "NASDAQ Composite", region: "US", exchange: "US" },
+        { symbol: "^DJI", name: "Dow Jones", region: "US", exchange: "US" },
+        { symbol: "^RUT", name: "Russell 2000", region: "US", exchange: "US" },
         
         // International Markets
-        { symbol: "^FTSE", name: "FTSE 100", region: "UK" },
-        { symbol: "^N225", name: "Nikkei 225", region: "Japan" },
-        { symbol: "^GDAXI", name: "DAX", region: "Germany" }
+        { symbol: "^FTSE", name: "FTSE 100", region: "UK", exchange: "UK" },
+        { symbol: "^N225", name: "Nikkei 225", region: "Japan", exchange: "Japan" },
+        { symbol: "^GDAXI", name: "DAX", region: "Germany", exchange: "Germany" }
       ];
 
-      const marketOpen = isMarketOpen();
       const marketData = [];
       
       for (const index of indices) {
         const quote = await fetchStockQuote(index.symbol);
+        const marketStatus = getMarketStatus(index.exchange);
+        
         if (quote) {
           marketData.push({
             symbol: index.symbol,
             name: index.name,
             region: index.region,
+            exchange: index.exchange,
             price: quote.price,
             change: quote.change,
             changePercent: quote.changePercent,
             volume: quote.volume,
-            marketOpen,
-            isFutures: !marketOpen,
+            marketOpen: marketStatus.isOpen,
+            marketStatus: marketStatus.status,
+            isFutures: marketStatus.isFutures,
           });
         }
       }

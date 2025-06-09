@@ -48,20 +48,34 @@ export default function MarketOverview() {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Market Status Indicator */}
+            {/* Global Market Status Overview */}
             {Array.isArray(indices) && indices.length > 0 && (
-              <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    indices[0]?.marketOpen ? 'bg-green-500' : 'bg-red-500'
-                  }`}></div>
-                  <span className="text-sm font-medium text-gray-700">
-                    {indices[0]?.marketOpen ? 'Markets Open' : 'Markets Closed'}
-                  </span>
+              <div className="pb-3 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-800">Global Markets</h4>
+                  <div className="flex items-center space-x-4">
+                    {/* US Market Status */}
+                    {(() => {
+                      const usMarket = indices.find((index: any) => index.exchange === "US");
+                      return usMarket ? (
+                        <div className="flex items-center space-x-1">
+                          <div className={`w-2 h-2 rounded-full ${usMarket.marketOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <span className="text-xs text-gray-600">US {usMarket.marketOpen ? 'Open' : 'Closed'}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                    {/* International Status */}
+                    {(() => {
+                      const intlOpen = indices.filter((index: any) => index.exchange !== "US" && index.marketOpen).length;
+                      const intlTotal = indices.filter((index: any) => index.exchange !== "US").length;
+                      return intlTotal > 0 ? (
+                        <span className="text-xs text-gray-500">
+                          Intl: {intlOpen}/{intlTotal} Open
+                        </span>
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
-                {!indices[0]?.marketOpen && (
-                  <span className="text-xs text-gray-500">Showing Futures</span>
-                )}
               </div>
             )}
             
@@ -83,13 +97,25 @@ export default function MarketOverview() {
                           <div>
                             <div className="flex items-center space-x-2">
                               <p className="font-medium text-gray-900">{index.name}</p>
-                              {index.isFutures && (
-                                <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
-                                  Futures
+                              <div className="flex items-center space-x-1">
+                                <div className={`w-1.5 h-1.5 rounded-full ${index.marketOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  index.marketOpen 
+                                    ? 'bg-green-50 text-green-700' 
+                                    : index.isFutures 
+                                      ? 'bg-orange-50 text-orange-700' 
+                                      : 'bg-gray-50 text-gray-600'
+                                }`}>
+                                  {index.marketOpen ? 'Live' : index.isFutures ? 'Futures' : 'Closed'}
                                 </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm text-gray-500">{index.symbol}</p>
+                              {index.marketStatus && (
+                                <span className="text-xs text-gray-400">{index.marketStatus}</span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500">{index.symbol}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-semibold text-gray-900">{formatNumber(index.price)}</p>
@@ -116,13 +142,25 @@ export default function MarketOverview() {
                               <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
                                 {index.region}
                               </span>
-                              {index.isFutures && (
-                                <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
-                                  Futures
+                              <div className="flex items-center space-x-1">
+                                <div className={`w-1.5 h-1.5 rounded-full ${index.marketOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  index.marketOpen 
+                                    ? 'bg-green-50 text-green-700' 
+                                    : index.isFutures 
+                                      ? 'bg-orange-50 text-orange-700' 
+                                      : 'bg-gray-50 text-gray-600'
+                                }`}>
+                                  {index.marketOpen ? 'Live' : index.isFutures ? 'Futures' : 'Closed'}
                                 </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm text-gray-500">{index.symbol}</p>
+                              {index.marketStatus && (
+                                <span className="text-xs text-gray-400">{index.marketStatus}</span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500">{index.symbol}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-semibold text-gray-900">{formatNumber(index.price)}</p>
