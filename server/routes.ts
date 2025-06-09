@@ -24,6 +24,8 @@ async function fetchStockQuoteFromFMP(symbol: string): Promise<StockQuote | null
     const [profileData] = await profileResponse.json();
     const [metricsData] = await metricsResponse.json();
     
+
+    
     if (!quoteData || !quoteData.price) return null;
     
     return {
@@ -348,6 +350,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             currentPrice: quote.price || 0,
             change: quote.change || 0,
             changePercent: quote.changePercent || 0,
+            dailyChange: quote.change || 0,
+            dailyChangePercent: quote.changePercent || 0,
             volume: quote.volume || 0,
           });
         } else {
@@ -356,6 +360,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             currentPrice: 0,
             change: 0,
             changePercent: 0,
+            dailyChange: 0,
+            dailyChangePercent: 0,
             volume: 0,
           });
         }
