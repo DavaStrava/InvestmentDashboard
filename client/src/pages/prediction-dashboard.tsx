@@ -25,7 +25,9 @@ import {
   ChartLine, 
   Bell, 
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { Link } from "wouter";
 import { AccuracyDefinitions } from "@/components/accuracy-definitions";
@@ -40,6 +42,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Prediction {
   id: number;
@@ -72,6 +75,9 @@ interface Accuracy {
 
 export default function PredictionDashboard() {
   const [symbolFilter, setSymbolFilter] = useState("");
+  const [isOneDayOpen, setIsOneDayOpen] = useState(true);
+  const [isOneWeekOpen, setIsOneWeekOpen] = useState(false);
+  const [isOneMonthOpen, setIsOneMonthOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -275,28 +281,35 @@ export default function PredictionDashboard() {
           </CardContent>
         </Card>
 
-        {/* Predictions Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <BarChart3 className="w-5 h-5" />
-              <span>Prediction Performance Tracking</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* 1-Day Predictions Table */}
+        <Collapsible open={isOneDayOpen} onOpenChange={setIsOneDayOpen}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-gray-50">
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Target className="w-5 h-5" />
+                    <span>1-Day Predictions</span>
+                  </div>
+                  {isOneDayOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Symbol</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Current Price</TableHead>
-                    <TableHead>1-Day Prediction</TableHead>
-                    <TableHead>1-Day Result</TableHead>
-                    <TableHead>1-Week Prediction</TableHead>
-                    <TableHead>1-Week Result</TableHead>
-                    <TableHead>1-Month Prediction</TableHead>
-                    <TableHead>1-Month Result</TableHead>
+                    <TableHead>Opening Price</TableHead>
+                    <TableHead>Predicted Price</TableHead>
+                    <TableHead>Closing Price</TableHead>
+                    <TableHead>Price Difference</TableHead>
+                    <TableHead>Direction</TableHead>
+                    <TableHead>Confidence</TableHead>
+                    <TableHead>Result</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -313,103 +326,174 @@ export default function PredictionDashboard() {
                       </TableCell>
                     </TableRow>
                   ) : (
+                    filteredPredictions.map((prediction) => {
+                      const predictedPrice = parseFloat(prediction.oneDayPrice);
+                      const actualPrice = prediction.oneDayActualPrice ? parseFloat(prediction.oneDayActualPrice) : null;
+                      const priceDifference = actualPrice ? actualPrice - predictedPrice : null;
+                      
+                      return (
+                        <TableRow key={prediction.id}>
+                          <TableCell className="font-medium">{prediction.symbol}</TableCell>
+                          <TableCell>{formatDate(prediction.predictionDate)}</TableCell>
+                          <TableCell className="font-medium">
+                            {formatCurrency(prediction.currentPrice)}
+                          </TableCell>
+                          <TableCell className="font-medium text-blue-600">
+                            {formatCurrency(prediction.oneDayPrice)}
+                          </TableCell>
+                          <TableCell>
+                            {actualPrice ? (
+                              <span className="font-medium">
+                                {formatCurrency(prediction.oneDayActualPrice)}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">Pending</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {priceDifference !== null ? (
+                              <div className={`font-medium ${priceDifference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {priceDifference >= 0 ? '+' : ''}{formatCurrency(Math.abs(priceDifference))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-1">
+                              {getDirectionIcon(prediction.oneDayDirection)}
+                              <span className="text-sm capitalize">{prediction.oneDayDirection}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {prediction.oneDayConfidence}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {getAccuracyBadge(prediction.oneDayAccurate, prediction.predictionDate, 24)}
+                          </TableCell>
+                          <TableCell>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2">
+                                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                                    Delete Prediction
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this prediction for {prediction.symbol}? 
+                                    This action cannot be undone and will remove all associated accuracy data.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deletePredictionMutation.mutate(prediction.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        {/* 1-Week Predictions Table */}
+        <Collapsible open={isOneWeekOpen} onOpenChange={setIsOneWeekOpen}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-gray-50">
+                <CardTitle className="flex items-center justify-between space-x-2">
+                  <div className="flex items-center space-x-2">
+                    <BarChart3 className="w-5 h-5" />
+                    <span>1-Week Predictions</span>
+                  </div>
+                  {isOneWeekOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Symbol</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Starting Price</TableHead>
+                    <TableHead>Predicted Price</TableHead>
+                    <TableHead>Actual Price</TableHead>
+                    <TableHead>Direction</TableHead>
+                    <TableHead>Confidence</TableHead>
+                    <TableHead>Result</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPredictions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        <div className="flex flex-col items-center space-y-2">
+                          <Brain className="w-8 h-8 text-gray-400" />
+                          <p className="text-gray-500">
+                            {symbolFilter ? `No predictions found for "${symbolFilter}"` : "No predictions available"}
+                          </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
                     filteredPredictions.map((prediction) => (
                       <TableRow key={prediction.id}>
                         <TableCell className="font-medium">{prediction.symbol}</TableCell>
                         <TableCell>{formatDate(prediction.predictionDate)}</TableCell>
-                        <TableCell>{formatCurrency(prediction.currentPrice)}</TableCell>
-                        
-                        {/* 1-Day Prediction */}
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            {getDirectionIcon(prediction.oneDayDirection)}
-                            <span>{formatCurrency(prediction.oneDayPrice)}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {prediction.oneDayConfidence}%
-                            </Badge>
-                          </div>
+                        <TableCell className="font-medium">
+                          {formatCurrency(prediction.currentPrice)}
+                        </TableCell>
+                        <TableCell className="font-medium text-blue-600">
+                          {formatCurrency(prediction.oneWeekPrice)}
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            {prediction.oneDayActualPrice && (
-                              <div className="text-sm">{formatCurrency(prediction.oneDayActualPrice)}</div>
-                            )}
-                            {getAccuracyBadge(prediction.oneDayAccurate, prediction.predictionDate, 24)}
-                          </div>
+                          {prediction.oneWeekActualPrice ? (
+                            <span className="font-medium">
+                              {formatCurrency(prediction.oneWeekActualPrice)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Pending</span>
+                          )}
                         </TableCell>
-                        
-                        {/* 1-Week Prediction */}
                         <TableCell>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-1">
                             {getDirectionIcon(prediction.oneWeekDirection)}
-                            <span>{formatCurrency(prediction.oneWeekPrice)}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {prediction.oneWeekConfidence}%
-                            </Badge>
+                            <span className="text-sm capitalize">{prediction.oneWeekDirection}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            {prediction.oneWeekActualPrice && (
-                              <div className="text-sm">{formatCurrency(prediction.oneWeekActualPrice)}</div>
-                            )}
-                            {getAccuracyBadge(prediction.oneWeekAccurate, prediction.predictionDate, 168)}
-                          </div>
-                        </TableCell>
-                        
-                        {/* 1-Month Prediction */}
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            {getDirectionIcon(prediction.oneMonthDirection)}
-                            <span>{formatCurrency(prediction.oneMonthPrice)}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {prediction.oneMonthConfidence}%
-                            </Badge>
-                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {prediction.oneWeekConfidence}%
+                          </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            {prediction.oneMonthActualPrice && (
-                              <div className="text-sm">{formatCurrency(prediction.oneMonthActualPrice)}</div>
-                            )}
-                            {getAccuracyBadge(prediction.oneMonthAccurate, prediction.predictionDate, 720)}
-                          </div>
-                        </TableCell>
-                        
-                        {/* Actions */}
-                        <TableCell>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="flex items-center gap-2">
-                                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                                  Delete Prediction
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this prediction for {prediction.symbol}? 
-                                  This action cannot be undone and will remove all associated accuracy data.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deletePredictionMutation.mutate(prediction.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          {getAccuracyBadge(prediction.oneWeekAccurate, prediction.predictionDate, 168)}
                         </TableCell>
                       </TableRow>
                     ))
@@ -417,8 +501,97 @@ export default function PredictionDashboard() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        {/* 1-Month Predictions Table */}
+        <Collapsible open={isOneMonthOpen} onOpenChange={setIsOneMonthOpen}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-gray-50">
+                <CardTitle className="flex items-center justify-between space-x-2">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="w-5 h-5" />
+                    <span>1-Month Predictions</span>
+                  </div>
+                  {isOneMonthOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Symbol</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Starting Price</TableHead>
+                    <TableHead>Predicted Price</TableHead>
+                    <TableHead>Actual Price</TableHead>
+                    <TableHead>Direction</TableHead>
+                    <TableHead>Confidence</TableHead>
+                    <TableHead>Result</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPredictions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        <div className="flex flex-col items-center space-y-2">
+                          <Brain className="w-8 h-8 text-gray-400" />
+                          <p className="text-gray-500">
+                            {symbolFilter ? `No predictions found for "${symbolFilter}"` : "No predictions available"}
+                          </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredPredictions.map((prediction) => (
+                      <TableRow key={prediction.id}>
+                        <TableCell className="font-medium">{prediction.symbol}</TableCell>
+                        <TableCell>{formatDate(prediction.predictionDate)}</TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(prediction.currentPrice)}
+                        </TableCell>
+                        <TableCell className="font-medium text-blue-600">
+                          {formatCurrency(prediction.oneMonthPrice)}
+                        </TableCell>
+                        <TableCell>
+                          {prediction.oneMonthActualPrice ? (
+                            <span className="font-medium">
+                              {formatCurrency(prediction.oneMonthActualPrice)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Pending</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-1">
+                            {getDirectionIcon(prediction.oneMonthDirection)}
+                            <span className="text-sm capitalize">{prediction.oneMonthDirection}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {prediction.oneMonthConfidence}%
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {getAccuracyBadge(prediction.oneMonthAccurate, prediction.predictionDate, 720)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
         {/* Accuracy Definitions */}
         <AccuracyDefinitions />
