@@ -250,7 +250,19 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     : prediction;
 
   // Show prediction if we have existing data OR new prediction was generated
-  const shouldShowPrediction = (existingPrediction && effectiveHasPrediction) || prediction;
+  const shouldShowPrediction = !!displayPrediction;
+
+  console.log(`[PREDICTION_DISPLAY_STATE] ${symbol}:`, {
+    isDuplicateError,
+    effectiveHasPrediction,
+    shouldShowPrediction,
+    hasDisplayPrediction: !!displayPrediction,
+    displayPredictionPreview: displayPrediction ? {
+      symbol: displayPrediction.symbol,
+      currentPrice: displayPrediction.currentPrice,
+      predictionsCount: displayPrediction.predictions?.length
+    } : null
+  });
 
   const getDirectionIcon = (direction: string) => {
     switch (direction) {
