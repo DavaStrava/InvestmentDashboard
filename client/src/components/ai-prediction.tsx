@@ -83,7 +83,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     },
     refetchOnWindowFocus: false,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours - predictions are valid for a day
-    enabled: (!hasTodaysPrediction && !checkingToday) || forceGenerate, // Only generate if no existing prediction OR forced
+    enabled: (!hasTodaysPrediction && !checkingToday && !hasStoredToday) || forceGenerate, // Only generate if no existing prediction OR forced
   });
 
   console.log(`[PREDICTION_QUERY_STATE] ${symbol}:`, {
@@ -112,6 +112,8 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     },
     onSuccess: () => {
       console.log(`[PREDICTION_STORAGE_SUCCESS] ${symbol}: Prediction stored, invalidating caches`);
+      // Mark as stored today to prevent duplicate generation
+      setHasStoredToday(true);
       // Invalidate predictions cache to refresh the analytics dashboard
       queryClient.invalidateQueries({ queryKey: ["/api/predictions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/predictions/accuracy"] });
