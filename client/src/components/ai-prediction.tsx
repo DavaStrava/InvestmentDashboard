@@ -175,6 +175,24 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
                   <span className="ml-2 font-medium">{formatCurrency(prediction.technicalAnalysis.resistance)}</span>
                 </div>
               </div>
+
+              {/* Overall Technical Summary - shown when details are expanded */}
+              {showDetails && (
+                <div className="mt-4 pt-3 border-t border-gray-200">
+                  <div className="flex items-start space-x-2">
+                    <Brain className="w-4 h-4 text-gray-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="text-sm font-semibold text-gray-700">Overall Assessment:</span>
+                      <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                        The current technical setup shows a {prediction.technicalAnalysis.trend} bias with RSI at {prediction.technicalAnalysis.rsi}, 
+                        indicating {parseFloat(prediction.technicalAnalysis.rsi) > 70 ? 'potentially overbought' : parseFloat(prediction.technicalAnalysis.rsi) < 30 ? 'potentially oversold' : 'neutral momentum'} conditions. 
+                        Key support is established around {formatCurrency(prediction.technicalAnalysis.support)} while resistance sits at {formatCurrency(prediction.technicalAnalysis.resistance)}. 
+                        The {prediction.technicalAnalysis.recommendation} recommendation reflects the current risk-reward profile and technical structure.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Predictions */}
@@ -234,11 +252,16 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
                     </div>
                   </div>
 
-                  {/* Reasoning */}
+                  {/* Detailed Analysis */}
                   {showDetails && (
-                    <div className="bg-blue-50 rounded p-3">
-                      <span className="text-sm font-medium text-blue-900">Analysis:</span>
-                      <p className="text-sm text-blue-800 mt-1">{pred.reasoning}</p>
+                    <div className="bg-blue-50 rounded-lg p-4 mt-3">
+                      <div className="flex items-start space-x-2">
+                        <Brain className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <span className="text-sm font-semibold text-blue-900">Technical Analysis:</span>
+                          <p className="text-sm text-blue-800 mt-2 leading-relaxed">{pred.reasoning}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

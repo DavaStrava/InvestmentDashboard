@@ -106,7 +106,7 @@ export async function generateStockPrediction(
       ((monthlyPrices[monthlyPrices.length - 1] - monthlyPrices[0]) / monthlyPrices[0] * 100).toFixed(2) : 'N/A';
 
     const prompt = `
-Analyze this stock data and provide price predictions:
+Analyze this stock data and provide detailed price predictions with comprehensive reasoning:
 
 Current Stock: ${symbol}
 Current Price: $${currentPrice}
@@ -127,22 +127,42 @@ TECHNICAL INDICATORS (from intraday data):
 MARKET CONTEXT:
 Consider broader market trends when making predictions. Use weekly/monthly trends to inform longer-term predictions.
 
-Please provide exactly this output:
+Please provide exactly this output with detailed reasoning for each prediction:
 {
   "predictions": {
-    "1d": {"point": number, "low": number, "high": number, "confidence": integer},
-    "1w": {"point": number, "low": number, "high": number, "confidence": integer},
-    "1m": {"point": number, "low": number, "high": number, "confidence": integer}
+    "1d": {
+      "point": number, 
+      "low": number, 
+      "high": number, 
+      "confidence": integer,
+      "detailed_reasoning": "Comprehensive 3-4 sentence analysis explaining the technical factors, price action patterns, and market dynamics that support this 1-day prediction. Include specific references to RSI levels, support/resistance, volume patterns, and any notable price movements."
+    },
+    "1w": {
+      "point": number, 
+      "low": number, 
+      "high": number, 
+      "confidence": integer,
+      "detailed_reasoning": "Detailed 3-4 sentence analysis for the 1-week outlook incorporating weekly trend data, momentum indicators, key technical levels, and broader market context. Explain how intraday patterns might extend into weekly movements and any potential catalysts or resistance areas."
+    },
+    "1m": {
+      "point": number, 
+      "low": number, 
+      "high": number, 
+      "confidence": integer,
+      "detailed_reasoning": "Comprehensive 3-4 sentence analysis for the 1-month prediction considering longer-term trends, fundamental factors that might be reflected in price action, seasonal patterns, and how current technical setup could evolve. Address any limitations in longer-term technical analysis."
+    }
   },
   "technical": {
     "trend": "up" | "down" | "sideways",
     "support_levels": [number],
-    "resistance_levels": [number]
+    "resistance_levels": [number],
+    "analysis_summary": "2-3 sentence overall technical assessment summarizing the key findings and overall market bias"
   },
-  "recommendation": "buy" | "sell" | "hold"
+  "recommendation": "buy" | "sell" | "hold",
+  "recommendation_reasoning": "Detailed explanation of why this recommendation is appropriate given the technical analysis and risk factors"
 }
 
-Use common technical analysis conventions. If you must estimate a value, include "note":"estimated" for that field. Base predictions on the current price of $${currentPrice} and provided indicators.
+Use common technical analysis conventions. Provide specific, actionable insights rather than generic statements. If you must estimate a value, include "note":"estimated" for that field. Base all analysis on the current price of $${currentPrice} and provided indicators.
 `;
 
     const requestPayload = {
@@ -188,7 +208,7 @@ Use common technical analysis conventions. If you must estimate a value, include
           predictedPrice: analysis.predictions["1d"].point,
           confidence: analysis.predictions["1d"].confidence,
           direction: analysis.technical.trend === "up" ? "up" : analysis.technical.trend === "down" ? "down" : "sideways",
-          reasoning: `Based on ${intradayData.length} intraday data points with RSI of ${rsi.toFixed(1)} and recent ${analysis.technical.trend} trend.`,
+          reasoning: analysis.predictions["1d"].detailed_reasoning || `Based on ${intradayData.length} intraday data points with RSI of ${rsi.toFixed(1)} and recent ${analysis.technical.trend} trend.`,
           confidenceInterval: {
             low: analysis.predictions["1d"].low,
             high: analysis.predictions["1d"].high,
@@ -199,7 +219,7 @@ Use common technical analysis conventions. If you must estimate a value, include
           predictedPrice: analysis.predictions["1w"].point,
           confidence: analysis.predictions["1w"].confidence,
           direction: weeklyTrend !== 'N/A' && parseFloat(weeklyTrend) > 0 ? "up" : weeklyTrend !== 'N/A' && parseFloat(weeklyTrend) < 0 ? "down" : "sideways",
-          reasoning: `Weekly trend of ${weeklyTrend}% suggests ${analysis.technical.trend} momentum with support at $${support.toFixed(2)}.`,
+          reasoning: analysis.predictions["1w"].detailed_reasoning || `Weekly trend of ${weeklyTrend}% suggests ${analysis.technical.trend} momentum with support at $${support.toFixed(2)}.`,
           confidenceInterval: {
             low: analysis.predictions["1w"].low,
             high: analysis.predictions["1w"].high,
@@ -210,7 +230,7 @@ Use common technical analysis conventions. If you must estimate a value, include
           predictedPrice: analysis.predictions["1m"].point,
           confidence: analysis.predictions["1m"].confidence,
           direction: monthlyTrend !== 'N/A' && parseFloat(monthlyTrend) > 0 ? "up" : monthlyTrend !== 'N/A' && parseFloat(monthlyTrend) < 0 ? "down" : "sideways",
-          reasoning: `Monthly trend of ${monthlyTrend}% indicates longer-term ${analysis.recommendation} recommendation with resistance at $${resistance.toFixed(2)}.`,
+          reasoning: analysis.predictions["1m"].detailed_reasoning || `Monthly trend of ${monthlyTrend}% indicates longer-term ${analysis.recommendation} recommendation with resistance at $${resistance.toFixed(2)}.`,
           confidenceInterval: {
             low: analysis.predictions["1m"].low,
             high: analysis.predictions["1m"].high,
