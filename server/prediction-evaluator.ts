@@ -94,6 +94,8 @@ export class PredictionEvaluator {
       const predictions = await storage.getPredictions();
       const now = new Date();
       
+      logger.info('EVALUATION', `Checking ${predictions.length} predictions for evaluation`);
+
       for (const prediction of predictions) {
         const predictionDate = new Date(prediction.predictionDate);
         let needsEvaluation = false;
@@ -106,12 +108,22 @@ export class PredictionEvaluator {
         const currentMinute = now.getUTCMinutes();
         const isAfterMarketClose = currentHour >= 21 || (currentHour < 13) || (currentHour === 13 && currentMinute < 30);
         
+        logger.info('EVALUATION', `Checking ${prediction.symbol}`, {
+          id: prediction.id,
+          hoursSince: hoursSincePrediction.toFixed(2),
+          daysSince: daysSincePrediction.toFixed(2),
+          isAfterMarketClose,
+          currentHour,
+          currentMinute,
+          oneDayAccurate: prediction.oneDayAccurate
+        });
+        
         // 1-day predictions: evaluate after market close on the same day or next trading day
-        // If prediction was made during market hours, evaluate after market close same day
-        // If prediction was made after market close, evaluate after next market close
-        const shouldEvaluateOneDay = prediction.oneDayAccurate === null && (
-          (daysSincePrediction >= 1 && isAfterMarketClose) ||
-          (hoursSincePrediction >= 2 && isAfterMarketClose && daysSincePrediction < 1)
+        // For same-day predictions: evaluate if made more than 1 hour ago and market is closed
+        // For next-day predictions: evaluate if at least 1 day has passed and market is closed
+        const shouldEvaluateOneDay = prediction.oneDayAccurate === null && isAfterMarketClose && (
+          (daysSincePrediction >= 1) ||  // Next day evaluation
+          (hoursSincePrediction >= 1 && daysSincePrediction < 1)  // Same day evaluation (relaxed from 2 hours to 1 hour)
         );
         
         if (shouldEvaluateOneDay) {
