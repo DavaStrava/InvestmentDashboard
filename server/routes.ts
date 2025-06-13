@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertHoldingSchema, insertWatchlistSchema, type StockQuote, type PortfolioSummary, type HoldingWithQuote } from "@shared/schema";
+import { insertHoldingSchema, insertWatchlistSchema, insertPredictionSchema, type StockQuote, type PortfolioSummary, type HoldingWithQuote } from "@shared/schema";
 import { z } from "zod";
 import { logger, validateNumeric, timeAsyncOperation } from "./logger";
 import multer from "multer";
@@ -799,15 +799,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Prediction tracking API routes
   
-  // Get prediction history for a symbol
-  app.get("/api/predictions/:symbol", async (req, res) => {
+  // Get prediction accuracy stats (general) - MUST come before :symbol route
+  app.get("/api/predictions/accuracy", async (req, res) => {
+    try {
+      const accuracy = await storage.getPredictionAccuracy();
+      res.json(accuracy);
+    } catch (error) {
+      console.error("Predictions accuracy error:", error);
+      res.status(500).json({ message: "Failed to fetch prediction accuracy" });
+    }
+  });
+
+  // Get prediction accuracy stats by symbol
+  app.get("/api/predictions/accuracy/:symbol", async (req, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();
-      const predictions = await storage.getPredictions(symbol);
-      res.json(predictions);
+      const accuracy = await storage.getPredictionAccuracy(symbol);
+      res.json(accuracy);
     } catch (error) {
-      console.error("Predictions get error:", error);
-      res.status(500).json({ message: "Failed to fetch predictions" });
+      console.error("Predictions accuracy error:", error);
+      res.status(500).json({ message: "Failed to fetch prediction accuracy" });
     }
   });
 
@@ -834,26 +845,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get prediction accuracy stats (general)
-  app.get("/api/predictions/accuracy", async (req, res) => {
-    try {
-      const accuracy = await storage.getPredictionAccuracy();
-      res.json(accuracy);
-    } catch (error) {
-      console.error("Predictions accuracy error:", error);
-      res.status(500).json({ message: "Failed to fetch prediction accuracy" });
-    }
-  });
-
-  // Get prediction accuracy stats by symbol
-  app.get("/api/predictions/accuracy/:symbol", async (req, res) => {
+  // Get prediction history for a symbol - MUST come after accuracy routes
+  app.get("/api/predictions/:symbol", async (req, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();
-      const accuracy = await storage.getPredictionAccuracy(symbol);
-      res.json(accuracy);
+      const predictions = await storage.getPredictions(symbol);
+      res.json(predictions);
     } catch (error) {
-      console.error("Predictions accuracy error:", error);
-      res.status(500).json({ message: "Failed to fetch prediction accuracy" });
+      console.error("Predictions get error:", error);
+      res.status(500).json({ message: "Failed to fetch predictions" });
     }
   });
 
