@@ -903,6 +903,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete prediction
+  app.delete("/api/predictions/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid prediction ID" });
+      }
+
+      const deleted = await storage.deletePrediction(id);
+
+      if (!deleted) {
+        return res.status(404).json({ message: "Prediction not found" });
+      }
+
+      res.json({ message: "Prediction deleted successfully" });
+    } catch (error) {
+      console.error("Predictions delete error:", error);
+      res.status(500).json({ message: "Failed to delete prediction" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

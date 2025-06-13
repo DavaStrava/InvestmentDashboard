@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -26,7 +27,8 @@ import {
   XCircle,
   Clock,
   ChartLine,
-  Bell
+  Bell,
+  Trash2
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -64,6 +66,8 @@ interface AccuracyStats {
 
 export default function PredictionDashboard() {
   const [symbolFilter, setSymbolFilter] = useState("");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: predictions, isLoading: predictionsLoading } = useQuery({
     queryKey: ["/api/predictions"],
@@ -74,6 +78,43 @@ export default function PredictionDashboard() {
     queryKey: ["/api/predictions/accuracy"],
     staleTime: 30 * 1000,
   });
+
+  // Delete prediction mutation
+  const deletePredictionMutation = useMutation({
+    mutationFn: async (predictionId: number) => {
+      const response = await fetch(`/api/predictions/${predictionId}`, {
+        method: "DELETE",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to delete prediction");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["/api/predictions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/predictions/accuracy"] });
+      toast({
+        title: "Prediction deleted",
+        description: "The prediction has been successfully removed.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete the prediction. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeletePrediction = (predictionId: number, symbol: string) => {
+    if (window.confirm(`Are you sure you want to delete the prediction for ${symbol}?`)) {
+      deletePredictionMutation.mutate(predictionId);
+    }
+  };
 
   const allPredictions = predictions as Prediction[] || [];
   const accuracy = (accuracyStats && typeof accuracyStats === 'object' && !Array.isArray(accuracyStats)) 
@@ -314,12 +355,13 @@ export default function PredictionDashboard() {
                     <TableHead>1-Month Prediction</TableHead>
                     <TableHead>1-Month Result</TableHead>
                     <TableHead>Trend</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredPredictions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                         {symbolFilter ? `No predictions found for "${symbolFilter}"` : "No predictions generated yet"}
                       </TableCell>
                     </TableRow>
@@ -388,6 +430,19 @@ export default function PredictionDashboard() {
                         </TableCell>
 
                         <TableCell>{getTrendBadge(prediction.trend)}</TableCell>
+                        
+                        {/* Actions Column */}
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeletePrediction(prediction.id, prediction.symbol)}
+                            disabled={deletePredictionMutation.isPending}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
