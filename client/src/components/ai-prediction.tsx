@@ -56,6 +56,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     gcTime: 0, // Don't cache this query
     refetchOnWindowFocus: false,
     refetchOnMount: true, // Always refetch when component mounts
+    refetchInterval: false, // Disable automatic refetching
   });
 
   const hasTodaysPrediction = (todayCheck as any)?.hasPrediction || false;
@@ -108,6 +109,18 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     hasPrediction: !!prediction,
     error: error?.message
   });
+
+  // Handle duplicate errors by forcing fetch of existing prediction
+  useEffect(() => {
+    if (error?.message === "DUPLICATE_PREDICTION") {
+      console.log(`[DUPLICATE_HANDLER] ${symbol}: Duplicate error detected, forcing fresh fetch`);
+      // Force a fresh fetch by removing cache and refetching
+      queryClient.removeQueries({ queryKey: ["/api/stocks", symbol, "prediction/today"] });
+      setTimeout(() => {
+        refetchTodayCheck();
+      }, 100);
+    }
+  }, [error?.message, symbol, refetchTodayCheck, queryClient]);
 
   // Mutation to store prediction in database
   const storePredictionMutation = useMutation({
