@@ -304,10 +304,13 @@ export default function PredictionDashboard() {
                     <TableHead>Symbol</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Opening Price</TableHead>
-                    <TableHead>Predicted Price</TableHead>
                     <TableHead>Closing Price</TableHead>
+                    <TableHead>Predicted Price</TableHead>
                     <TableHead>Price Difference</TableHead>
-                    <TableHead>Direction</TableHead>
+                    <TableHead>Accuracy %</TableHead>
+                    <TableHead>Predicted Direction</TableHead>
+                    <TableHead>Market Direction</TableHead>
+                    <TableHead>Direction Match</TableHead>
                     <TableHead>Confidence</TableHead>
                     <TableHead>Result</TableHead>
                     <TableHead>Actions</TableHead>
@@ -316,7 +319,7 @@ export default function PredictionDashboard() {
                 <TableBody>
                   {filteredPredictions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8">
+                      <TableCell colSpan={13} className="text-center py-8">
                         <div className="flex flex-col items-center space-y-2">
                           <Brain className="w-8 h-8 text-gray-400" />
                           <p className="text-gray-500">
@@ -327,9 +330,18 @@ export default function PredictionDashboard() {
                     </TableRow>
                   ) : (
                     filteredPredictions.map((prediction) => {
+                      const openingPrice = parseFloat(prediction.currentPrice);
                       const predictedPrice = parseFloat(prediction.oneDayPrice);
                       const actualPrice = prediction.oneDayActualPrice ? parseFloat(prediction.oneDayActualPrice) : null;
                       const priceDifference = actualPrice ? actualPrice - predictedPrice : null;
+                      
+                      // Calculate accuracy percentage
+                      const accuracyPercentage = actualPrice ? 
+                        (100 - Math.abs((actualPrice - predictedPrice) / actualPrice * 100)) : null;
+                      
+                      // Calculate actual market direction
+                      const marketDirection = actualPrice ? 
+                        (actualPrice > openingPrice ? 'up' : actualPrice < openingPrice ? 'down' : 'sideways') : null;
                       
                       return (
                         <TableRow key={prediction.id}>
@@ -337,9 +349,6 @@ export default function PredictionDashboard() {
                           <TableCell>{formatDate(prediction.predictionDate)}</TableCell>
                           <TableCell className="font-medium">
                             {formatCurrency(prediction.currentPrice)}
-                          </TableCell>
-                          <TableCell className="font-medium text-blue-600">
-                            {formatCurrency(prediction.oneDayPrice)}
                           </TableCell>
                           <TableCell>
                             {actualPrice ? (
@@ -349,6 +358,9 @@ export default function PredictionDashboard() {
                             ) : (
                               <span className="text-muted-foreground text-sm">Pending</span>
                             )}
+                          </TableCell>
+                          <TableCell className="font-medium text-blue-600">
+                            {formatCurrency(prediction.oneDayPrice)}
                           </TableCell>
                           <TableCell>
                             {priceDifference !== null ? (
@@ -360,10 +372,48 @@ export default function PredictionDashboard() {
                             )}
                           </TableCell>
                           <TableCell>
+                            {accuracyPercentage !== null ? (
+                              <div className={`font-medium ${accuracyPercentage >= 90 ? 'text-green-600' : accuracyPercentage >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                {accuracyPercentage.toFixed(1)}%
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             <div className="flex items-center space-x-1">
                               {getDirectionIcon(prediction.oneDayDirection)}
                               <span className="text-sm capitalize">{prediction.oneDayDirection}</span>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            {marketDirection ? (
+                              <div className="flex items-center space-x-1">
+                                {getDirectionIcon(marketDirection)}
+                                <span className="text-sm capitalize">{marketDirection}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">Pending</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {marketDirection ? (
+                              <div className="flex items-center justify-center">
+                                {prediction.oneDayDirection === marketDirection ? (
+                                  <div className="flex items-center space-x-1 text-green-600">
+                                    <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                                    <span className="text-xs font-medium">Match</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center space-x-1 text-red-600">
+                                    <div className="w-2 h-2 bg-red-600 rounded-full"></div>
+                                    <span className="text-xs font-medium">Miss</span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-xs">
