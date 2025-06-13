@@ -409,29 +409,43 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
             </div>
             
             {/* Display existing prediction data */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <div className="text-sm text-gray-500 mb-1">1 Day Prediction</div>
-                  <div className="font-semibold text-lg">{formatCurrency(parseFloat(existingPrediction.oneDayPrice))}</div>
-                  <div className="text-sm text-gray-600">{existingPrediction.oneDayConfidence}% confidence</div>
+            {existingPrediction && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <div className="text-sm text-gray-500 mb-1">1 Day Prediction</div>
+                    <div className="font-semibold text-lg">
+                      {existingPrediction.oneDayPrice ? formatCurrency(parseFloat(existingPrediction.oneDayPrice)) : "N/A"}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {existingPrediction.oneDayConfidence || "N/A"}% confidence
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <div className="text-sm text-gray-500 mb-1">1 Week Prediction</div>
+                    <div className="font-semibold text-lg">
+                      {existingPrediction.oneWeekPrice ? formatCurrency(parseFloat(existingPrediction.oneWeekPrice)) : "N/A"}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {existingPrediction.oneWeekConfidence || "N/A"}% confidence
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <div className="text-sm text-gray-500 mb-1">1 Month Prediction</div>
+                    <div className="font-semibold text-lg">
+                      {existingPrediction.oneMonthPrice ? formatCurrency(parseFloat(existingPrediction.oneMonthPrice)) : "N/A"}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {existingPrediction.oneMonthConfidence || "N/A"}% confidence
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <div className="text-sm text-gray-500 mb-1">1 Week Prediction</div>
-                  <div className="font-semibold text-lg">{formatCurrency(parseFloat(existingPrediction.oneWeekPrice))}</div>
-                  <div className="text-sm text-gray-600">{existingPrediction.oneWeekConfidence}% confidence</div>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <div className="text-sm text-gray-500 mb-1">1 Month Prediction</div>
-                  <div className="font-semibold text-lg">{formatCurrency(parseFloat(existingPrediction.oneMonthPrice))}</div>
-                  <div className="text-sm text-gray-600">{existingPrediction.oneMonthConfidence}% confidence</div>
+                
+                <div className="text-xs text-gray-500 text-center">
+                  Generated on {existingPrediction.predictionDate ? new Date(existingPrediction.predictionDate).toLocaleDateString() : "Unknown date"}
                 </div>
               </div>
-              
-              <div className="text-xs text-gray-500 text-center">
-                Generated on {new Date(existingPrediction.predictionDate).toLocaleDateString()}
-              </div>
-            </div>
+            )}
           </div>
         ) : prediction ? (
           <div className="space-y-6">
