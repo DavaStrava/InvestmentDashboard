@@ -52,7 +52,8 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
   // Check if prediction already exists for today
   const { data: todayCheck, isLoading: checkingToday } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction/today"],
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours - keep this fresh all day
+    refetchOnWindowFocus: false,
   });
 
   const hasTodaysPrediction = (todayCheck as any)?.hasPrediction || false;
@@ -69,7 +70,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     },
     refetchOnWindowFocus: false,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours - predictions are valid for a day
-    enabled: !hasTodaysPrediction, // Auto-fetch if no prediction exists for today
+    enabled: !hasTodaysPrediction && !checkingToday, // Only generate if no existing prediction AND not currently checking
   });
 
   // Mutation to store prediction in database
@@ -99,7 +100,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
 
   // Auto-store prediction when it's successfully generated
   useEffect(() => {
-    if (prediction && !hasTodaysPrediction && !checkingToday) {
+    if (prediction && !hasTodaysPrediction && !checkingToday && !storePredictionMutation.isPending) {
       const oneDayPred = prediction.predictions.find(p => p.timeframe === "1 day");
       const oneWeekPred = prediction.predictions.find(p => p.timeframe === "1 week");
       const oneMonthPred = prediction.predictions.find(p => p.timeframe === "1 month");
@@ -126,6 +127,62 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
       }
     }
   }, [prediction, hasTodaysPrediction, checkingToday]);
+
+  // Convert existing database prediction to display format
+  const convertDbPredictionToDisplay = (dbPrediction: any): StockPrediction => {
+    return {
+      symbol: dbPrediction.symbol,
+      currentPrice: parseFloat(dbPrediction.currentPrice),
+      predictions: [
+        {
+          timeframe: "1 day",
+          predictedPrice: parseFloat(dbPrediction.oneDayPrice),
+          confidence: dbPrediction.oneDayConfidence,
+          direction: dbPrediction.oneDayDirection,
+          reasoning: `1-day technical analysis based on current market conditions and RSI of ${dbPrediction.rsi}.`,
+          confidenceInterval: {
+            low: parseFloat(dbPrediction.oneDayPrice) * 0.98,
+            high: parseFloat(dbPrediction.oneDayPrice) * 1.02,
+          },
+        },
+        {
+          timeframe: "1 week",
+          predictedPrice: parseFloat(dbPrediction.oneWeekPrice),
+          confidence: dbPrediction.oneWeekConfidence,
+          direction: dbPrediction.oneWeekDirection,
+          reasoning: "1-week outlook incorporating weekly trend analysis and momentum indicators.",
+          confidenceInterval: {
+            low: parseFloat(dbPrediction.oneWeekPrice) * 0.95,
+            high: parseFloat(dbPrediction.oneWeekPrice) * 1.05,
+          },
+        },
+        {
+          timeframe: "1 month",
+          predictedPrice: parseFloat(dbPrediction.oneMonthPrice),
+          confidence: dbPrediction.oneMonthConfidence,
+          direction: dbPrediction.oneMonthDirection,
+          reasoning: "1-month prediction considering longer-term trends and market dynamics.",
+          confidenceInterval: {
+            low: parseFloat(dbPrediction.oneMonthPrice) * 0.90,
+            high: parseFloat(dbPrediction.oneMonthPrice) * 1.10,
+          },
+        },
+      ],
+      technicalAnalysis: {
+        trend: dbPrediction.trend,
+        support: parseFloat(dbPrediction.currentPrice) * 0.95,
+        resistance: parseFloat(dbPrediction.currentPrice) * 1.05,
+        rsi: dbPrediction.rsi || "N/A",
+        recommendation: dbPrediction.recommendation,
+      },
+      generatedAt: dbPrediction.generatedAt,
+    };
+  };
+
+  // Use existing prediction if available, otherwise use newly generated one
+  const displayPrediction = hasTodaysPrediction && existingPrediction 
+    ? convertDbPredictionToDisplay(existingPrediction)
+    : prediction;
 
   const getDirectionIcon = (direction: string) => {
     switch (direction) {
