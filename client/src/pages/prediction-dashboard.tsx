@@ -424,7 +424,7 @@ export default function PredictionDashboard() {
           <Card>
             <CollapsibleTrigger asChild>
               <CardHeader className="cursor-pointer hover:bg-gray-50">
-                <CardTitle className="flex items-center justify-between space-x-2">
+                <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <BarChart3 className="w-5 h-5" />
                     <span>1-Week Predictions</span>
@@ -511,7 +511,7 @@ export default function PredictionDashboard() {
           <Card>
             <CollapsibleTrigger asChild>
               <CardHeader className="cursor-pointer hover:bg-gray-50">
-                <CardTitle className="flex items-center justify-between space-x-2">
+                <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <TrendingUp className="w-5 h-5" />
                     <span>1-Month Predictions</span>
