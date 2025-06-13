@@ -1,4 +1,6 @@
-import { holdings, watchlist, type Holding, type InsertHolding, type WatchlistItem, type InsertWatchlistItem } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { holdings, watchlist, predictions, type Holding, type InsertHolding, type WatchlistItem, type InsertWatchlistItem, type Prediction, type InsertPrediction } from "@shared/schema";
+import { db } from "./db";
 
 export interface IStorage {
   // Holdings
@@ -14,6 +16,18 @@ export interface IStorage {
   createWatchlistItem(item: InsertWatchlistItem): Promise<WatchlistItem>;
   deleteWatchlistItem(id: number): Promise<boolean>;
   isSymbolInWatchlist(symbol: string): Promise<boolean>;
+  
+  // Predictions
+  createPrediction(prediction: InsertPrediction): Promise<Prediction>;
+  getPredictions(symbol?: string): Promise<Prediction[]>;
+  getPredictionById(id: number): Promise<Prediction | undefined>;
+  updatePredictionActuals(id: number, timeframe: '1d' | '1w' | '1m', actualPrice: number, accurate: boolean): Promise<Prediction | undefined>;
+  getPredictionAccuracy(symbol?: string): Promise<{ 
+    oneDayAccuracy: number; 
+    oneWeekAccuracy: number; 
+    oneMonthAccuracy: number; 
+    totalPredictions: number;
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -153,6 +167,82 @@ export class DatabaseStorage implements IStorage {
   async isSymbolInWatchlist(symbol: string): Promise<boolean> {
     const [item] = await db.select().from(watchlist).where(eq(watchlist.symbol, symbol));
     return !!item;
+  }
+
+  // Predictions
+  async createPrediction(insertPrediction: InsertPrediction): Promise<Prediction> {
+    const [prediction] = await db
+      .insert(predictions)
+      .values(insertPrediction)
+      .returning();
+    return prediction;
+  }
+
+  async getPredictions(symbol?: string): Promise<Prediction[]> {
+    if (symbol) {
+      return await db.select().from(predictions).where(eq(predictions.symbol, symbol));
+    }
+    return await db.select().from(predictions);
+  }
+
+  async getPredictionById(id: number): Promise<Prediction | undefined> {
+    const [prediction] = await db.select().from(predictions).where(eq(predictions.id, id));
+    return prediction || undefined;
+  }
+
+  async updatePredictionActuals(id: number, timeframe: '1d' | '1w' | '1m', actualPrice: number, accurate: boolean): Promise<Prediction | undefined> {
+    let updateData: any = { updatedAt: new Date() };
+    
+    switch (timeframe) {
+      case '1d':
+        updateData.oneDayActualPrice = actualPrice.toString();
+        updateData.oneDayAccurate = accurate;
+        break;
+      case '1w':
+        updateData.oneWeekActualPrice = actualPrice.toString();
+        updateData.oneWeekAccurate = accurate;
+        break;
+      case '1m':
+        updateData.oneMonthActualPrice = actualPrice.toString();
+        updateData.oneMonthAccurate = accurate;
+        break;
+    }
+
+    const [prediction] = await db
+      .update(predictions)
+      .set(updateData)
+      .where(eq(predictions.id, id))
+      .returning();
+    return prediction || undefined;
+  }
+
+  async getPredictionAccuracy(symbol?: string): Promise<{ 
+    oneDayAccuracy: number; 
+    oneWeekAccuracy: number; 
+    oneMonthAccuracy: number; 
+    totalPredictions: number;
+  }> {
+    let query = db.select().from(predictions);
+    if (symbol) {
+      query = query.where(eq(predictions.symbol, symbol));
+    }
+    
+    const allPredictions = await query;
+    
+    const oneDayPredictions = allPredictions.filter(p => p.oneDayAccurate !== null);
+    const oneWeekPredictions = allPredictions.filter(p => p.oneWeekAccurate !== null);
+    const oneMonthPredictions = allPredictions.filter(p => p.oneMonthAccurate !== null);
+    
+    const oneDayAccurate = oneDayPredictions.filter(p => p.oneDayAccurate === true).length;
+    const oneWeekAccurate = oneWeekPredictions.filter(p => p.oneWeekAccurate === true).length;
+    const oneMonthAccurate = oneMonthPredictions.filter(p => p.oneMonthAccurate === true).length;
+    
+    return {
+      oneDayAccuracy: oneDayPredictions.length > 0 ? (oneDayAccurate / oneDayPredictions.length) * 100 : 0,
+      oneWeekAccuracy: oneWeekPredictions.length > 0 ? (oneWeekAccurate / oneWeekPredictions.length) * 100 : 0,
+      oneMonthAccuracy: oneMonthPredictions.length > 0 ? (oneMonthAccurate / oneMonthPredictions.length) * 100 : 0,
+      totalPredictions: allPredictions.length,
+    };
   }
 }
 
