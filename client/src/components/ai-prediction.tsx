@@ -59,18 +59,35 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
   const hasTodaysPrediction = (todayCheck as any)?.hasPrediction || false;
   const existingPrediction = (todayCheck as any)?.prediction;
 
+  console.log(`[PREDICTION_STATE] ${symbol}:`, {
+    checkingToday,
+    hasTodaysPrediction,
+    hasExistingPrediction: !!existingPrediction,
+    todayCheckData: todayCheck
+  });
+
   const { data: prediction, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction"],
     queryFn: async () => {
+      console.log(`[PREDICTION_GENERATION] ${symbol}: Starting new prediction generation`);
       const response = await fetch(`/api/stocks/${symbol}/prediction`);
       if (!response.ok) {
         throw new Error("Failed to fetch prediction");
       }
-      return response.json() as Promise<StockPrediction>;
+      const result = await response.json() as StockPrediction;
+      console.log(`[PREDICTION_GENERATION] ${symbol}: Generated new prediction:`, result);
+      return result;
     },
     refetchOnWindowFocus: false,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours - predictions are valid for a day
     enabled: !hasTodaysPrediction && !checkingToday, // Only generate if no existing prediction AND not currently checking
+  });
+
+  console.log(`[PREDICTION_QUERY_STATE] ${symbol}:`, {
+    enabled: !hasTodaysPrediction && !checkingToday,
+    isLoading,
+    hasPrediction: !!prediction,
+    error: error?.message
   });
 
   // Mutation to store prediction in database

@@ -778,20 +778,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/stocks/:symbol/prediction/today", async (req, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();
-      console.log(`[API] Checking today's prediction for ${symbol}`);
+      console.log(`[PREDICTION_TODAY_CHECK] Starting check for ${symbol}`);
       
       const hasPrediction = await storage.hasTodaysPrediction(symbol);
+      console.log(`[PREDICTION_TODAY_CHECK] ${symbol} hasPrediction result: ${hasPrediction}`);
       
       if (hasPrediction) {
         const prediction = await storage.getTodaysPrediction(symbol);
-        console.log(`[API] Found existing prediction for ${symbol}`);
+        console.log(`[PREDICTION_TODAY_CHECK] ${symbol} existing prediction found:`, {
+          id: prediction?.id,
+          predictionDate: prediction?.predictionDate,
+          hasData: !!prediction
+        });
         res.json({ hasPrediction: true, prediction });
       } else {
-        console.log(`[API] No existing prediction for ${symbol}`);
+        console.log(`[PREDICTION_TODAY_CHECK] ${symbol} no existing prediction found`);
         res.json({ hasPrediction: false, prediction: null });
       }
     } catch (error) {
-      console.error("Today's prediction check error:", error);
+      console.error(`[PREDICTION_TODAY_CHECK] Error:`, error);
       res.status(500).json({ message: "Failed to check today's prediction" });
     }
   });
@@ -801,11 +806,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { symbol } = req.params;
     
     try {
+      console.log(`[PREDICTION_GENERATION] Starting generation for ${symbol}`);
+      
       // Get current quote
       const quote = await fetchStockQuote(symbol);
       if (!quote) {
+        console.log(`[PREDICTION_GENERATION] ${symbol} - No quote data available`);
         return res.status(404).json({ message: "Stock data not available" });
       }
+      console.log(`[PREDICTION_GENERATION] ${symbol} - Quote obtained: $${quote.price}`);
 
       // Get multiple timeframes for comprehensive analysis
       const [intradayData, weeklyData, monthlyData] = await Promise.all([
@@ -815,8 +824,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]);
 
       if (!intradayData || intradayData.length === 0) {
+        console.log(`[PREDICTION_GENERATION] ${symbol} - No historical data available`);
         return res.status(404).json({ message: "Historical data required for prediction" });
       }
+      console.log(`[PREDICTION_GENERATION] ${symbol} - Historical data: intraday=${intradayData.length}, weekly=${weeklyData?.length || 0}, monthly=${monthlyData?.length || 0}`);
 
       // Generate AI-powered prediction with multi-timeframe data
       const { generateStockPrediction } = await import("./openai");
@@ -830,9 +841,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
 
+      console.log(`[PREDICTION_GENERATION] ${symbol} - AI prediction generated successfully`);
       res.json(prediction);
     } catch (error) {
-      console.error("Prediction error:", error);
+      console.error(`[PREDICTION_GENERATION] ${symbol} error:`, error);
       res.status(500).json({ message: "Failed to generate prediction" });
     }
   });
