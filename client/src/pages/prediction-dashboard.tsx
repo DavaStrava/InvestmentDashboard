@@ -134,14 +134,24 @@ export default function PredictionDashboard() {
     }
   };
 
-  const getAccuracyBadge = (accurate: boolean | undefined) => {
-    if (accurate === undefined) {
-      return <Badge variant="secondary">Pending</Badge>;
+  const getAccuracyBadge = (accurate: boolean | null | undefined, predictionDate: string, timeframeHours: number) => {
+    // Check if enough time has passed for evaluation
+    const now = new Date();
+    const predDate = new Date(predictionDate);
+    const hoursElapsed = (now.getTime() - predDate.getTime()) / (1000 * 60 * 60);
+    
+    if (accurate === null || accurate === undefined) {
+      if (hoursElapsed < timeframeHours) {
+        return <Badge variant="secondary">Pending</Badge>;
+      } else {
+        return <Badge variant="outline" className="text-yellow-600">Awaiting Evaluation</Badge>;
+      }
     }
+    
     return accurate ? (
-      <Badge className="bg-green-100 text-green-800">Accurate</Badge>
+      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Accurate</Badge>
     ) : (
-      <Badge className="bg-red-100 text-red-800">Inaccurate</Badge>
+      <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Inaccurate</Badge>
     );
   };
 
@@ -323,7 +333,7 @@ export default function PredictionDashboard() {
                             {prediction.oneDayActualPrice && (
                               <div className="text-sm">{formatCurrency(prediction.oneDayActualPrice)}</div>
                             )}
-                            {getAccuracyBadge(prediction.oneDayAccurate)}
+                            {getAccuracyBadge(prediction.oneDayAccurate, prediction.predictionDate, 24)}
                           </div>
                         </TableCell>
                         
@@ -342,7 +352,7 @@ export default function PredictionDashboard() {
                             {prediction.oneWeekActualPrice && (
                               <div className="text-sm">{formatCurrency(prediction.oneWeekActualPrice)}</div>
                             )}
-                            {getAccuracyBadge(prediction.oneWeekAccurate)}
+                            {getAccuracyBadge(prediction.oneWeekAccurate, prediction.predictionDate, 168)}
                           </div>
                         </TableCell>
                         
@@ -361,7 +371,7 @@ export default function PredictionDashboard() {
                             {prediction.oneMonthActualPrice && (
                               <div className="text-sm">{formatCurrency(prediction.oneMonthActualPrice)}</div>
                             )}
-                            {getAccuracyBadge(prediction.oneMonthAccurate)}
+                            {getAccuracyBadge(prediction.oneMonthAccurate, prediction.predictionDate, 720)}
                           </div>
                         </TableCell>
                         

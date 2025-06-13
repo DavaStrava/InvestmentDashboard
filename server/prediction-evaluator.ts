@@ -99,21 +99,21 @@ export class PredictionEvaluator {
         let needsEvaluation = false;
 
         // Check 1-day predictions (evaluate after 1 day + 4 hours buffer)
-        if (!prediction.oneDayAccurate && 
+        if (prediction.oneDayAccurate === null && 
             now.getTime() - predictionDate.getTime() > (25 * 60 * 60 * 1000)) {
           await this.evaluateOneDayPrediction(prediction);
           needsEvaluation = true;
         }
 
         // Check 1-week predictions (evaluate after 7 days + 1 day buffer)
-        if (!prediction.oneWeekAccurate && 
+        if (prediction.oneWeekAccurate === null && 
             now.getTime() - predictionDate.getTime() > (8 * 24 * 60 * 60 * 1000)) {
           await this.evaluateOneWeekPrediction(prediction);
           needsEvaluation = true;
         }
 
         // Check 1-month predictions (evaluate after 30 days + 2 days buffer)
-        if (!prediction.oneMonthAccurate && 
+        if (prediction.oneMonthAccurate === null && 
             now.getTime() - predictionDate.getTime() > (32 * 24 * 60 * 60 * 1000)) {
           await this.evaluateOneMonthPrediction(prediction);
           needsEvaluation = true;
