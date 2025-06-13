@@ -57,7 +57,9 @@ export default function PredictionDashboard() {
   });
 
   const allPredictions = predictions as Prediction[] || [];
-  const accuracy = accuracyStats as AccuracyStats || { oneDayAccuracy: 0, oneWeekAccuracy: 0, oneMonthAccuracy: 0, totalPredictions: 0 };
+  const accuracy = (accuracyStats && typeof accuracyStats === 'object' && !Array.isArray(accuracyStats)) 
+    ? accuracyStats as AccuracyStats 
+    : { oneDayAccuracy: 0, oneWeekAccuracy: 0, oneMonthAccuracy: 0, totalPredictions: 0 };
 
   // Process data for charts
   const getDirectionAccuracy = (timeframe: 'oneDay' | 'oneWeek' | 'oneMonth') => {

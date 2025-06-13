@@ -822,10 +822,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get prediction accuracy stats
-  app.get("/api/predictions/accuracy/:symbol?", async (req, res) => {
+  // Get prediction accuracy stats (general)
+  app.get("/api/predictions/accuracy", async (req, res) => {
     try {
-      const symbol = req.params.symbol?.toUpperCase();
+      const accuracy = await storage.getPredictionAccuracy();
+      res.json(accuracy);
+    } catch (error) {
+      console.error("Predictions accuracy error:", error);
+      res.status(500).json({ message: "Failed to fetch prediction accuracy" });
+    }
+  });
+
+  // Get prediction accuracy stats by symbol
+  app.get("/api/predictions/accuracy/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
       const accuracy = await storage.getPredictionAccuracy(symbol);
       res.json(accuracy);
     } catch (error) {
