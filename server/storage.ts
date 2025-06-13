@@ -30,6 +30,7 @@ export interface IStorage {
   }>;
   hasTodaysPrediction(symbol: string): Promise<boolean>;
   getTodaysPrediction(symbol: string): Promise<Prediction | undefined>;
+  deletePrediction(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -143,6 +144,10 @@ export class MemStorage implements IStorage {
 
   async getTodaysPrediction(symbol: string): Promise<Prediction | undefined> {
     return undefined; // MemStorage doesn't persist predictions across sessions
+  }
+
+  async deletePrediction(id: number): Promise<boolean> {
+    return false; // MemStorage doesn't persist predictions across sessions
   }
 }
 
@@ -311,6 +316,20 @@ export class DatabaseStorage implements IStorage {
       const predDate = new Date(pred.predictionDate);
       return predDate >= startOfDay && predDate < endOfDay;
     });
+  }
+
+  async deletePrediction(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(predictions)
+        .where(eq(predictions.id, id))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Delete prediction error:", error);
+      return false;
+    }
   }
 }
 
