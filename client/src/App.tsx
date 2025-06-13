@@ -12,7 +12,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Portfolio} />
       <Route path="/portfolio" component={Portfolio} />
-      <Route path="/dashboard/predictions" component={PredictionDashboard} />
+      <Route path="/prediction-dashboard" component={PredictionDashboard} />
       <Route component={NotFound} />
     </Switch>
   );

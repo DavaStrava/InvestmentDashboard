@@ -19,26 +19,19 @@ import {
   Brain, 
   Target, 
   TrendingUp, 
-  TrendingDown, 
   BarChart3, 
-  Filter, 
-  ChartLine, 
-  Bell, 
-  Trash2,
-  AlertTriangle
+  Filter,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  CheckCircle,
+  XCircle,
+  Clock,
+  ChartLine,
+  Bell,
+  Trash2
 } from "lucide-react";
 import { Link } from "wouter";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 interface Prediction {
   id: number;
@@ -60,9 +53,12 @@ interface Prediction {
   oneMonthDirection: string;
   oneMonthActualPrice?: string;
   oneMonthAccurate?: boolean;
+  trend: string;
+  recommendation: string;
+  generatedAt: string;
 }
 
-interface Accuracy {
+interface AccuracyStats {
   oneDayAccuracy: number;
   oneWeekAccuracy: number;
   oneMonthAccuracy: number;
@@ -71,83 +67,134 @@ interface Accuracy {
 
 export default function PredictionDashboard() {
   const [symbolFilter, setSymbolFilter] = useState("");
-  const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const { data: predictions = [], isLoading: predictionsLoading } = useQuery<Prediction[]>({
+  const { data: predictions, isLoading: predictionsLoading } = useQuery({
     queryKey: ["/api/predictions"],
+    staleTime: 30 * 1000,
   });
 
-  const { data: accuracy, isLoading: accuracyLoading } = useQuery<Accuracy>({
+  const { data: accuracyStats, isLoading: accuracyLoading } = useQuery({
     queryKey: ["/api/predictions/accuracy"],
+    staleTime: 30 * 1000,
   });
 
+  // Delete prediction mutation
   const deletePredictionMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await fetch(`/api/predictions/${id}`, {
+    mutationFn: async (predictionId: number) => {
+      const response = await fetch(`/api/predictions/${predictionId}`, {
         method: "DELETE",
       });
+      
       if (!response.ok) {
         throw new Error("Failed to delete prediction");
       }
+      
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/predictions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/predictions/accuracy"] });
       toast({
-        title: "Success",
-        description: "Prediction deleted successfully",
+        title: "Prediction deleted",
+        description: "The prediction has been successfully removed.",
       });
     },
-    onError: () => {
+    onError: (error) => {
       toast({
-        title: "Error",
-        description: "Failed to delete prediction",
+        title: "Delete failed",
+        description: "Failed to delete the prediction. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  const filteredPredictions = predictions.filter(prediction =>
-    symbolFilter === "" || prediction.symbol.toLowerCase().includes(symbolFilter.toLowerCase())
-  );
-
-  const formatCurrency = (value: string | number | undefined) => {
-    if (!value) return "N/A";
-    const num = typeof value === "string" ? parseFloat(value) : value;
-    return `$${num.toFixed(2)}`;
+  const handleDeletePrediction = (predictionId: number, symbol: string) => {
+    if (window.confirm(`Are you sure you want to delete the prediction for ${symbol}?`)) {
+      deletePredictionMutation.mutate(predictionId);
+    }
   };
 
+  const allPredictions = predictions as Prediction[] || [];
+  const accuracy = (accuracyStats && typeof accuracyStats === 'object' && !Array.isArray(accuracyStats)) 
+    ? accuracyStats as AccuracyStats 
+    : { oneDayAccuracy: 0, oneWeekAccuracy: 0, oneMonthAccuracy: 0, totalPredictions: 0 };
+
+  // Filter predictions by symbol
+  const filteredPredictions = allPredictions.filter(p => 
+    symbolFilter === "" || p.symbol.toLowerCase().includes(symbolFilter.toLowerCase())
+  );
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatPrice = (price: string | number) => {
+    return typeof price === 'string' ? `$${parseFloat(price).toFixed(2)}` : `$${price.toFixed(2)}`;
   };
 
   const getDirectionIcon = (direction: string) => {
     switch (direction.toLowerCase()) {
-      case "up":
-        return <TrendingUp className="w-4 h-4 text-green-600" />;
-      case "down":
-        return <TrendingDown className="w-4 h-4 text-red-600" />;
-      default:
-        return <Target className="w-4 h-4 text-gray-600" />;
+      case 'up': return <ArrowUp className="h-4 w-4 text-green-600" />;
+      case 'down': return <ArrowDown className="h-4 w-4 text-red-600" />;
+      default: return <Minus className="h-4 w-4 text-gray-600" />;
     }
   };
 
-  const getAccuracyBadge = (accurate: boolean | undefined) => {
-    if (accurate === undefined) {
-      return <Badge variant="secondary">Pending</Badge>;
-    }
-    return accurate ? (
-      <Badge className="bg-green-100 text-green-800">Accurate</Badge>
-    ) : (
-      <Badge className="bg-red-100 text-red-800">Inaccurate</Badge>
-    );
+  const getAccuracyIcon = (accurate: boolean | null | undefined) => {
+    if (accurate === null || accurate === undefined) return <Clock className="h-4 w-4 text-gray-400" />;
+    return accurate ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />;
+  };
+
+  const getTrendBadge = (trend: string) => {
+    const color = trend === 'bullish' ? 'bg-green-100 text-green-800' : 
+                  trend === 'bearish' ? 'bg-red-100 text-red-800' : 
+                  'bg-yellow-100 text-yellow-800';
+    return <Badge className={color}>{trend}</Badge>;
   };
 
   if (predictionsLoading || accuracyLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
+        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+            <div className="flex justify-between items-center h-14 sm:h-16">
+              <div className="flex items-center space-x-4 sm:space-x-8 min-w-0">
+                <div className="flex items-center space-x-2 min-w-0">
+                  <ChartLine className="text-primary text-lg sm:text-2xl flex-shrink-0" />
+                  <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">PortfolioTracker</h1>
+                </div>
+                <nav className="hidden sm:flex space-x-4 lg:space-x-6">
+                  <Link href="/portfolio">
+                    <button className="font-medium pb-1 text-gray-600 hover:text-gray-900">
+                      Portfolio
+                    </button>
+                  </Link>
+                  <button className="font-medium pb-1 text-primary border-b-2 border-primary">
+                    AI Predictions Dashboard
+                  </button>
+                </nav>
+              </div>
+              <div className="flex items-center space-x-2 sm:space-x-4">
+                <Link href="/portfolio">
+                  <Button variant="outline" size="sm" className="h-8 sm:h-9">
+                    Back to Portfolio
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="icon" className="text-gray-600 hover:text-gray-900 h-8 w-8 sm:h-10 sm:w-10">
+                  <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
         <div className="p-6 space-y-6">
           <div className="flex items-center space-x-2">
             <Brain className="w-6 h-6" />
@@ -166,19 +213,6 @@ export default function PredictionDashboard() {
             ))}
           </div>
           <Skeleton className="h-80 w-full" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!accuracy) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="p-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">No prediction data available</h1>
-            <p className="text-muted-foreground">Start by making some predictions in the portfolio section.</p>
-          </div>
         </div>
       </div>
     );
@@ -286,19 +320,15 @@ export default function PredictionDashboard() {
                     <TableHead>1-Week Result</TableHead>
                     <TableHead>1-Month Prediction</TableHead>
                     <TableHead>1-Month Result</TableHead>
+                    <TableHead>Trend</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredPredictions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8">
-                        <div className="flex flex-col items-center space-y-2">
-                          <Brain className="w-8 h-8 text-gray-400" />
-                          <p className="text-gray-500">
-                            {symbolFilter ? `No predictions found for "${symbolFilter}"` : "No predictions available"}
-                          </p>
-                        </div>
+                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                        {symbolFilter ? `No predictions found for "${symbolFilter}"` : "No predictions generated yet"}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -306,99 +336,78 @@ export default function PredictionDashboard() {
                       <TableRow key={prediction.id}>
                         <TableCell className="font-medium">{prediction.symbol}</TableCell>
                         <TableCell>{formatDate(prediction.predictionDate)}</TableCell>
-                        <TableCell>{formatCurrency(prediction.currentPrice)}</TableCell>
+                        <TableCell>{formatPrice(prediction.currentPrice)}</TableCell>
                         
                         {/* 1-Day Prediction */}
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             {getDirectionIcon(prediction.oneDayDirection)}
-                            <span>{formatCurrency(prediction.oneDayPrice)}</span>
+                            <span>{formatPrice(prediction.oneDayPrice)}</span>
                             <Badge variant="outline" className="text-xs">
                               {prediction.oneDayConfidence}%
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            {prediction.oneDayActualPrice && (
-                              <div className="text-sm">{formatCurrency(prediction.oneDayActualPrice)}</div>
-                            )}
-                            {getAccuracyBadge(prediction.oneDayAccurate)}
+                          <div className="flex items-center space-x-2">
+                            {getAccuracyIcon(prediction.oneDayAccurate)}
+                            <span className="text-sm">
+                              {prediction.oneDayActualPrice ? formatPrice(prediction.oneDayActualPrice) : "Pending"}
+                            </span>
                           </div>
                         </TableCell>
-                        
+
                         {/* 1-Week Prediction */}
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             {getDirectionIcon(prediction.oneWeekDirection)}
-                            <span>{formatCurrency(prediction.oneWeekPrice)}</span>
+                            <span>{formatPrice(prediction.oneWeekPrice)}</span>
                             <Badge variant="outline" className="text-xs">
                               {prediction.oneWeekConfidence}%
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            {prediction.oneWeekActualPrice && (
-                              <div className="text-sm">{formatCurrency(prediction.oneWeekActualPrice)}</div>
-                            )}
-                            {getAccuracyBadge(prediction.oneWeekAccurate)}
+                          <div className="flex items-center space-x-2">
+                            {getAccuracyIcon(prediction.oneWeekAccurate)}
+                            <span className="text-sm">
+                              {prediction.oneWeekActualPrice ? formatPrice(prediction.oneWeekActualPrice) : "Pending"}
+                            </span>
                           </div>
                         </TableCell>
-                        
+
                         {/* 1-Month Prediction */}
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             {getDirectionIcon(prediction.oneMonthDirection)}
-                            <span>{formatCurrency(prediction.oneMonthPrice)}</span>
+                            <span>{formatPrice(prediction.oneMonthPrice)}</span>
                             <Badge variant="outline" className="text-xs">
                               {prediction.oneMonthConfidence}%
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            {prediction.oneMonthActualPrice && (
-                              <div className="text-sm">{formatCurrency(prediction.oneMonthActualPrice)}</div>
-                            )}
-                            {getAccuracyBadge(prediction.oneMonthAccurate)}
+                          <div className="flex items-center space-x-2">
+                            {getAccuracyIcon(prediction.oneMonthAccurate)}
+                            <span className="text-sm">
+                              {prediction.oneMonthActualPrice ? formatPrice(prediction.oneMonthActualPrice) : "Pending"}
+                            </span>
                           </div>
                         </TableCell>
+
+                        <TableCell>{getTrendBadge(prediction.trend)}</TableCell>
                         
-                        {/* Actions */}
+                        {/* Actions Column */}
                         <TableCell>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="flex items-center gap-2">
-                                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                                  Delete Prediction
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this prediction for {prediction.symbol}? 
-                                  This action cannot be undone and will remove all associated accuracy data.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deletePredictionMutation.mutate(prediction.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeletePrediction(prediction.id, prediction.symbol)}
+                            disabled={deletePredictionMutation.isPending}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
