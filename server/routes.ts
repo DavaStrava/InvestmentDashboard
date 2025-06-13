@@ -778,12 +778,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/stocks/:symbol/prediction/today", async (req, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();
+      console.log(`[API] Checking today's prediction for ${symbol}`);
+      
       const hasPrediction = await storage.hasTodaysPrediction(symbol);
       
       if (hasPrediction) {
         const prediction = await storage.getTodaysPrediction(symbol);
+        console.log(`[API] Found existing prediction for ${symbol}`);
         res.json({ hasPrediction: true, prediction });
       } else {
+        console.log(`[API] No existing prediction for ${symbol}`);
         res.json({ hasPrediction: false, prediction: null });
       }
     } catch (error) {

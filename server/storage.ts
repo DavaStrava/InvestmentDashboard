@@ -349,20 +349,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async hasTodaysPrediction(symbol: string): Promise<boolean> {
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-    
-    const [existingPrediction] = await db
-      .select()
-      .from(predictions)
-      .where(eq(predictions.symbol, symbol))
-      .limit(1);
-    
-    if (!existingPrediction) return false;
-    
-    const predDate = new Date(existingPrediction.predictionDate);
-    return predDate >= startOfDay && predDate < endOfDay;
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      
+      const todaysPredictions = await db
+        .select()
+        .from(predictions)
+        .where(eq(predictions.symbol, symbol));
+      
+      const hasTodayPrediction = todaysPredictions.some(pred => {
+        const predDate = new Date(pred.predictionDate);
+        return predDate >= startOfDay && predDate < endOfDay;
+      });
+      
+      console.log(`[PREDICTION_CHECK] ${symbol}: ${hasTodayPrediction ? 'HAS' : 'NO'} today's prediction`);
+      return hasTodayPrediction;
+    } catch (error) {
+      console.error("Error checking today's prediction:", error);
+      return false;
+    }
   }
 
   async getTodaysPrediction(symbol: string): Promise<Prediction | undefined> {
