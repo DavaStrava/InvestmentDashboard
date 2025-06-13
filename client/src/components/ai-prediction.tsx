@@ -53,7 +53,9 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
   const { data: todayCheck, isLoading: checkingToday, refetch: refetchTodayCheck } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction/today"],
     staleTime: 0, // Always fresh to catch newly stored predictions
+    gcTime: 0, // Don't cache this query
     refetchOnWindowFocus: false,
+    refetchOnMount: true, // Always refetch when component mounts
   });
 
   const hasTodaysPrediction = (todayCheck as any)?.hasPrediction || false;
