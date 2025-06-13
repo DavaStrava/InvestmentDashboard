@@ -239,14 +239,18 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     };
   };
 
-  // Use existing prediction if available, otherwise use newly generated one
-  const displayPrediction = hasTodaysPrediction && existingPrediction 
-    ? convertDbPredictionToDisplay(existingPrediction)
-    : prediction;
-
   // Handle duplicate prediction error by treating it as success
   const isDuplicateError = error?.message === "DUPLICATE_PREDICTION";
   const effectiveHasPrediction = hasTodaysPrediction || isDuplicateError;
+
+  // Use existing prediction if available, otherwise use newly generated one
+  // When duplicate error occurs, always prefer the existing prediction
+  const displayPrediction = existingPrediction 
+    ? convertDbPredictionToDisplay(existingPrediction)
+    : prediction;
+
+  // Show prediction if we have existing data OR new prediction was generated
+  const shouldShowPrediction = (existingPrediction && effectiveHasPrediction) || prediction;
 
   const getDirectionIcon = (direction: string) => {
     switch (direction) {
@@ -318,7 +322,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
             <Skeleton className="h-8 w-1/2" />
             <Skeleton className="h-20 w-full" />
           </div>
-        ) : effectiveHasPrediction && existingPrediction ? (
+        ) : shouldShowPrediction ? (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <div className="flex items-center space-x-2 mb-2">
