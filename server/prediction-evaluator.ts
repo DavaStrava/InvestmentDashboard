@@ -98,9 +98,14 @@ export class PredictionEvaluator {
         const predictionDate = new Date(prediction.predictionDate);
         let needsEvaluation = false;
 
-        // Check 1-day predictions (evaluate after 1 day + 4 hours buffer)
+        // Check 1-day predictions 
+        // Evaluate after market close (4 PM ET) or after 25 hours, whichever comes first
+        const hoursSincePrediction = (now.getTime() - predictionDate.getTime()) / (60 * 60 * 1000);
+        const currentHour = now.getUTCHours();
+        const isAfterMarketClose = currentHour >= 21 || currentHour < 13; // Market closes at 4 PM ET (21 UTC)
+        
         if (prediction.oneDayAccurate === null && 
-            now.getTime() - predictionDate.getTime() > (25 * 60 * 60 * 1000)) {
+            (hoursSincePrediction > 25 || (hoursSincePrediction > 2 && isAfterMarketClose))) {
           await this.evaluateOneDayPrediction(prediction);
           needsEvaluation = true;
         }

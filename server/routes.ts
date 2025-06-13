@@ -1012,6 +1012,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manually trigger prediction evaluation
+  app.post("/api/predictions/evaluate", async (req, res) => {
+    try {
+      const { predictionEvaluator } = require("./prediction-evaluator");
+      await predictionEvaluator.evaluateDuePredictions();
+      res.json({ message: "Prediction evaluation triggered successfully" });
+    } catch (error) {
+      console.error("Manual evaluation error:", error);
+      res.status(500).json({ message: "Failed to trigger evaluation" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
