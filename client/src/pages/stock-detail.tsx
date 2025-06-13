@@ -17,8 +17,15 @@ export default function StockDetailPage() {
   const symbol = params.symbol?.toUpperCase();
 
   // Fetch stock quote
-  const { data: quote, isLoading: quoteLoading } = useQuery<StockQuote>({
-    queryKey: ["/api/stocks", symbol, "quote"],
+  const { data: quote, isLoading: quoteLoading, error: quoteError } = useQuery<StockQuote>({
+    queryKey: [`/api/stocks/${symbol}/quote`],
+    queryFn: async () => {
+      const response = await fetch(`/api/stocks/${symbol}/quote`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch quote');
+      }
+      return response.json();
+    },
     enabled: !!symbol,
   });
 
