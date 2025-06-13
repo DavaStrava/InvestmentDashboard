@@ -104,9 +104,26 @@ export class PredictionEvaluator {
         const daysSincePrediction = hoursSincePrediction / 24;
         
         // Check if market is currently closed (after 4 PM ET or before 9:30 AM ET)
+        // Converting to ET: UTC-5 (EST) or UTC-4 (EDT)
+        // Market closes at 20:00 UTC (4 PM EDT), opens at 13:30 UTC (9:30 AM EDT)
         const currentHour = now.getUTCHours();
         const currentMinute = now.getUTCMinutes();
-        const isAfterMarketClose = currentHour >= 21 || (currentHour < 13) || (currentHour === 13 && currentMinute < 30);
+        const currentTimeInMinutes = currentHour * 60 + currentMinute;
+        const marketCloseTime = 20 * 60; // 20:00 UTC in minutes
+        const marketOpenTime = 13 * 60 + 30; // 13:30 UTC in minutes
+        const isAfterMarketClose = currentTimeInMinutes >= marketCloseTime || currentTimeInMinutes < marketOpenTime;
+        
+        // Debug log to verify calculation
+        if (prediction.symbol === 'AMZN') {
+          logger.info('EVALUATION', 'Market timing debug for AMZN', {
+            currentTimeInMinutes,
+            marketCloseTime,
+            marketOpenTime,
+            isAfterClose: currentTimeInMinutes >= marketCloseTime,
+            isBeforeOpen: currentTimeInMinutes < marketOpenTime,
+            finalIsAfterMarketClose: isAfterMarketClose
+          });
+        }
         
         logger.info('EVALUATION', `Checking ${prediction.symbol}`, {
           id: prediction.id,
@@ -115,6 +132,9 @@ export class PredictionEvaluator {
           isAfterMarketClose,
           currentHour,
           currentMinute,
+          currentTimeInMinutes,
+          marketCloseTime,
+          marketOpenTime,
           oneDayAccurate: prediction.oneDayAccurate
         });
         
