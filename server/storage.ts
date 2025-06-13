@@ -103,10 +103,38 @@ export class MemStorage implements IStorage {
   async isSymbolInWatchlist(symbol: string): Promise<boolean> {
     return Array.from(this.watchlist.values()).some(item => item.symbol === symbol);
   }
-}
 
-import { db } from "./db";
-import { eq } from "drizzle-orm";
+  // Predictions (stub implementation for MemStorage)
+  async createPrediction(insertPrediction: InsertPrediction): Promise<Prediction> {
+    throw new Error("Predictions not supported in MemStorage");
+  }
+
+  async getPredictions(symbol?: string): Promise<Prediction[]> {
+    return [];
+  }
+
+  async getPredictionById(id: number): Promise<Prediction | undefined> {
+    return undefined;
+  }
+
+  async updatePredictionActuals(id: number, timeframe: '1d' | '1w' | '1m', actualPrice: number, accurate: boolean): Promise<Prediction | undefined> {
+    return undefined;
+  }
+
+  async getPredictionAccuracy(symbol?: string): Promise<{ 
+    oneDayAccuracy: number; 
+    oneWeekAccuracy: number; 
+    oneMonthAccuracy: number; 
+    totalPredictions: number;
+  }> {
+    return {
+      oneDayAccuracy: 0,
+      oneWeekAccuracy: 0,
+      oneMonthAccuracy: 0,
+      totalPredictions: 0,
+    };
+  }
+}
 
 export class DatabaseStorage implements IStorage {
   // Holdings
@@ -138,7 +166,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteHolding(id: number): Promise<boolean> {
     const result = await db.delete(holdings).where(eq(holdings.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Watchlist
@@ -161,7 +189,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWatchlistItem(id: number): Promise<boolean> {
     const result = await db.delete(watchlist).where(eq(watchlist.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async isSymbolInWatchlist(symbol: string): Promise<boolean> {

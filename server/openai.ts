@@ -252,6 +252,32 @@ Use common technical analysis conventions. Provide specific, actionable insights
       },
     };
 
+    // Store prediction in database for tracking
+    try {
+      const { storage } = await import("./storage");
+      await storage.createPrediction({
+        symbol,
+        currentPrice: currentPrice.toString(),
+        oneDayPrice: prediction.predictions[0].predictedPrice.toString(),
+        oneDayConfidence: prediction.predictions[0].confidence,
+        oneDayDirection: prediction.predictions[0].direction,
+        oneWeekPrice: prediction.predictions[1].predictedPrice.toString(),
+        oneWeekConfidence: prediction.predictions[1].confidence,
+        oneWeekDirection: prediction.predictions[1].direction,
+        oneMonthPrice: prediction.predictions[2].predictedPrice.toString(),
+        oneMonthConfidence: prediction.predictions[2].confidence,
+        oneMonthDirection: prediction.predictions[2].direction,
+        rsi: parseFloat(prediction.technicalAnalysis.rsi).toString(),
+        trend: prediction.technicalAnalysis.trend,
+        recommendation: prediction.technicalAnalysis.recommendation,
+        generatedAt: new Date(prediction.generatedAt),
+      });
+      console.log(`[PREDICTION_STORED] ${symbol} prediction saved to database`);
+    } catch (storageError) {
+      console.error("Failed to store prediction:", storageError);
+      // Don't fail the prediction if storage fails
+    }
+
     return prediction;
   } catch (error) {
     console.error("AI prediction error:", error);
