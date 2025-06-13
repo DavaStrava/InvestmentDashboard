@@ -822,6 +822,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create a new prediction
+  app.post("/api/predictions", async (req, res) => {
+    try {
+      const predictionData = insertPredictionSchema.parse(req.body);
+      const prediction = await storage.createPrediction(predictionData);
+      res.json(prediction);
+    } catch (error) {
+      console.error("Predictions create error:", error);
+      res.status(500).json({ message: "Failed to create prediction" });
+    }
+  });
+
   // Get prediction accuracy stats (general)
   app.get("/api/predictions/accuracy", async (req, res) => {
     try {
