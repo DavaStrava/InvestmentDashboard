@@ -139,11 +139,11 @@ export class PredictionEvaluator {
         });
         
         // 1-day predictions: evaluate after market close on the same day or next trading day
-        // For same-day predictions: evaluate if made more than 1 hour ago and market is closed
+        // For same-day predictions: evaluate if made more than 30 minutes ago and market is closed
         // For next-day predictions: evaluate if at least 1 day has passed and market is closed
         const shouldEvaluateOneDay = prediction.oneDayAccurate === null && isAfterMarketClose && (
           (daysSincePrediction >= 1) ||  // Next day evaluation
-          (hoursSincePrediction >= 1 && daysSincePrediction < 1)  // Same day evaluation (relaxed from 2 hours to 1 hour)
+          (hoursSincePrediction >= 0.5 && daysSincePrediction < 1)  // Same day evaluation (30 minutes minimum)
         );
         
         if (shouldEvaluateOneDay) {
