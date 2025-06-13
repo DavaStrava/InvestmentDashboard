@@ -83,7 +83,7 @@ export default function Portfolio() {
                   className="h-8 sm:h-9"
                 >
                   <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">AI Analytics</span>
+                  <span className="hidden sm:inline">AI Predictions Dashboard</span>
                 </Button>
               </Link>
 
