@@ -31,6 +31,27 @@ export interface IStorage {
   hasTodaysPrediction(symbol: string): Promise<boolean>;
   getTodaysPrediction(symbol: string): Promise<Prediction | undefined>;
   deletePrediction(id: number): Promise<boolean>;
+  updatePredictionEvaluation(id: number, timeframe: '1d' | '1w' | '1m', evaluation: {
+    actualPrice: number;
+    priceAccurate: boolean;
+    directionAccurate: boolean;
+    overallAccurate: boolean;
+    weightedScore: number;
+  }): Promise<Prediction | undefined>;
+  updatePredictionEvaluationTimestamp(id: number): Promise<void>;
+  getEnhancedPredictionAccuracy(symbol?: string): Promise<{
+    oneDayAccuracy: number;
+    oneWeekAccuracy: number; 
+    oneMonthAccuracy: number;
+    oneDayPriceAccuracy: number;
+    oneWeekPriceAccuracy: number;
+    oneMonthPriceAccuracy: number;
+    oneDayDirectionAccuracy: number;
+    oneWeekDirectionAccuracy: number;
+    oneMonthDirectionAccuracy: number;
+    averageWeightedScore: number;
+    totalPredictions: number;
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -148,6 +169,48 @@ export class MemStorage implements IStorage {
 
   async deletePrediction(id: number): Promise<boolean> {
     return false; // MemStorage doesn't persist predictions across sessions
+  }
+
+  async updatePredictionEvaluation(id: number, timeframe: '1d' | '1w' | '1m', evaluation: {
+    actualPrice: number;
+    priceAccurate: boolean;
+    directionAccurate: boolean;
+    overallAccurate: boolean;
+    weightedScore: number;
+  }): Promise<Prediction | undefined> {
+    return undefined; // MemStorage doesn't persist predictions across sessions
+  }
+
+  async updatePredictionEvaluationTimestamp(id: number): Promise<void> {
+    // MemStorage doesn't persist predictions across sessions
+  }
+
+  async getEnhancedPredictionAccuracy(symbol?: string): Promise<{
+    oneDayAccuracy: number;
+    oneWeekAccuracy: number; 
+    oneMonthAccuracy: number;
+    oneDayPriceAccuracy: number;
+    oneWeekPriceAccuracy: number;
+    oneMonthPriceAccuracy: number;
+    oneDayDirectionAccuracy: number;
+    oneWeekDirectionAccuracy: number;
+    oneMonthDirectionAccuracy: number;
+    averageWeightedScore: number;
+    totalPredictions: number;
+  }> {
+    return {
+      oneDayAccuracy: 0,
+      oneWeekAccuracy: 0,
+      oneMonthAccuracy: 0,
+      oneDayPriceAccuracy: 0,
+      oneWeekPriceAccuracy: 0,
+      oneMonthPriceAccuracy: 0,
+      oneDayDirectionAccuracy: 0,
+      oneWeekDirectionAccuracy: 0,
+      oneMonthDirectionAccuracy: 0,
+      averageWeightedScore: 0,
+      totalPredictions: 0,
+    };
   }
 }
 
@@ -329,6 +392,145 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Delete prediction error:", error);
       return false;
+    }
+  }
+
+  async updatePredictionEvaluation(id: number, timeframe: '1d' | '1w' | '1m', evaluation: {
+    actualPrice: number;
+    priceAccurate: boolean;
+    directionAccurate: boolean;
+    overallAccurate: boolean;
+    weightedScore: number;
+  }): Promise<Prediction | undefined> {
+    try {
+      let updateData: any = {};
+
+      if (timeframe === '1d') {
+        updateData = {
+          oneDayActualPrice: evaluation.actualPrice.toString(),
+          oneDayAccurate: evaluation.overallAccurate,
+          oneDayPriceAccurate: evaluation.priceAccurate,
+          oneDayDirectionAccurate: evaluation.directionAccurate,
+          oneDayWeightedScore: evaluation.weightedScore.toString(),
+        };
+      } else if (timeframe === '1w') {
+        updateData = {
+          oneWeekActualPrice: evaluation.actualPrice.toString(),
+          oneWeekAccurate: evaluation.overallAccurate,
+          oneWeekPriceAccurate: evaluation.priceAccurate,
+          oneWeekDirectionAccurate: evaluation.directionAccurate,
+          oneWeekWeightedScore: evaluation.weightedScore.toString(),
+        };
+      } else if (timeframe === '1m') {
+        updateData = {
+          oneMonthActualPrice: evaluation.actualPrice.toString(),
+          oneMonthAccurate: evaluation.overallAccurate,
+          oneMonthPriceAccurate: evaluation.priceAccurate,
+          oneMonthDirectionAccurate: evaluation.directionAccurate,
+          oneMonthWeightedScore: evaluation.weightedScore.toString(),
+        };
+      }
+
+      const [prediction] = await db
+        .update(predictions)
+        .set(updateData)
+        .where(eq(predictions.id, id))
+        .returning();
+
+      return prediction || undefined;
+    } catch (error) {
+      console.error("Update prediction evaluation error:", error);
+      return undefined;
+    }
+  }
+
+  async updatePredictionEvaluationTimestamp(id: number): Promise<void> {
+    try {
+      await db
+        .update(predictions)
+        .set({ lastEvaluatedAt: new Date() })
+        .where(eq(predictions.id, id));
+    } catch (error) {
+      console.error("Update prediction timestamp error:", error);
+    }
+  }
+
+  async getEnhancedPredictionAccuracy(symbol?: string): Promise<{
+    oneDayAccuracy: number;
+    oneWeekAccuracy: number; 
+    oneMonthAccuracy: number;
+    oneDayPriceAccuracy: number;
+    oneWeekPriceAccuracy: number;
+    oneMonthPriceAccuracy: number;
+    oneDayDirectionAccuracy: number;
+    oneWeekDirectionAccuracy: number;
+    oneMonthDirectionAccuracy: number;
+    averageWeightedScore: number;
+    totalPredictions: number;
+  }> {
+    try {
+      const allPredictions = symbol 
+        ? await db.select().from(predictions).where(eq(predictions.symbol, symbol))
+        : await db.select().from(predictions);
+
+      // Overall accuracy
+      const oneDayPredictions = allPredictions.filter(p => p.oneDayAccurate !== null);
+      const oneWeekPredictions = allPredictions.filter(p => p.oneWeekAccurate !== null);
+      const oneMonthPredictions = allPredictions.filter(p => p.oneMonthAccurate !== null);
+
+      const oneDayAccurate = oneDayPredictions.filter(p => p.oneDayAccurate === true).length;
+      const oneWeekAccurate = oneWeekPredictions.filter(p => p.oneWeekAccurate === true).length;
+      const oneMonthAccurate = oneMonthPredictions.filter(p => p.oneMonthAccurate === true).length;
+
+      // Price accuracy
+      const oneDayPriceAccurate = allPredictions.filter(p => p.oneDayPriceAccurate === true).length;
+      const oneWeekPriceAccurate = allPredictions.filter(p => p.oneWeekPriceAccurate === true).length;
+      const oneMonthPriceAccurate = allPredictions.filter(p => p.oneMonthPriceAccurate === true).length;
+
+      // Direction accuracy
+      const oneDayDirectionAccurate = allPredictions.filter(p => p.oneDayDirectionAccurate === true).length;
+      const oneWeekDirectionAccurate = allPredictions.filter(p => p.oneWeekDirectionAccurate === true).length;
+      const oneMonthDirectionAccurate = allPredictions.filter(p => p.oneMonthDirectionAccurate === true).length;
+
+      // Weighted score calculation
+      const weightedScores = allPredictions
+        .map(p => [p.oneDayWeightedScore, p.oneWeekWeightedScore, p.oneMonthWeightedScore])
+        .flat()
+        .filter(score => score !== null)
+        .map(score => parseFloat(score as string));
+
+      const averageWeightedScore = weightedScores.length > 0 
+        ? weightedScores.reduce((sum, score) => sum + score, 0) / weightedScores.length 
+        : 0;
+
+      return {
+        oneDayAccuracy: oneDayPredictions.length > 0 ? (oneDayAccurate / oneDayPredictions.length) * 100 : 0,
+        oneWeekAccuracy: oneWeekPredictions.length > 0 ? (oneWeekAccurate / oneWeekPredictions.length) * 100 : 0,
+        oneMonthAccuracy: oneMonthPredictions.length > 0 ? (oneMonthAccurate / oneMonthPredictions.length) * 100 : 0,
+        oneDayPriceAccuracy: oneDayPredictions.length > 0 ? (oneDayPriceAccurate / oneDayPredictions.length) * 100 : 0,
+        oneWeekPriceAccuracy: oneWeekPredictions.length > 0 ? (oneWeekPriceAccurate / oneWeekPredictions.length) * 100 : 0,
+        oneMonthPriceAccuracy: oneMonthPredictions.length > 0 ? (oneMonthPriceAccurate / oneMonthPredictions.length) * 100 : 0,
+        oneDayDirectionAccuracy: oneDayPredictions.length > 0 ? (oneDayDirectionAccurate / oneDayPredictions.length) * 100 : 0,
+        oneWeekDirectionAccuracy: oneWeekPredictions.length > 0 ? (oneWeekDirectionAccurate / oneWeekPredictions.length) * 100 : 0,
+        oneMonthDirectionAccuracy: oneMonthPredictions.length > 0 ? (oneMonthDirectionAccurate / oneMonthPredictions.length) * 100 : 0,
+        averageWeightedScore: averageWeightedScore * 100, // Convert to percentage
+        totalPredictions: allPredictions.length,
+      };
+    } catch (error) {
+      console.error("Get enhanced prediction accuracy error:", error);
+      return {
+        oneDayAccuracy: 0,
+        oneWeekAccuracy: 0,
+        oneMonthAccuracy: 0,
+        oneDayPriceAccuracy: 0,
+        oneWeekPriceAccuracy: 0,
+        oneMonthPriceAccuracy: 0,
+        oneDayDirectionAccuracy: 0,
+        oneWeekDirectionAccuracy: 0,
+        oneMonthDirectionAccuracy: 0,
+        averageWeightedScore: 0,
+        totalPredictions: 0,
+      };
     }
   }
 }

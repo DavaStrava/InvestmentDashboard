@@ -30,6 +30,9 @@ export const predictions = pgTable("predictions", {
   oneDayDirection: varchar("one_day_direction", { length: 10 }).notNull(),
   oneDayActualPrice: decimal("one_day_actual_price", { precision: 10, scale: 2 }),
   oneDayAccurate: boolean("one_day_accurate"),
+  oneDayPriceAccurate: boolean("one_day_price_accurate"),
+  oneDayDirectionAccurate: boolean("one_day_direction_accurate"),
+  oneDayWeightedScore: decimal("one_day_weighted_score", { precision: 5, scale: 4 }),
   
   // 1-week prediction  
   oneWeekPrice: decimal("one_week_price", { precision: 10, scale: 2 }).notNull(),
@@ -37,6 +40,9 @@ export const predictions = pgTable("predictions", {
   oneWeekDirection: varchar("one_week_direction", { length: 10 }).notNull(),
   oneWeekActualPrice: decimal("one_week_actual_price", { precision: 10, scale: 2 }),
   oneWeekAccurate: boolean("one_week_accurate"),
+  oneWeekPriceAccurate: boolean("one_week_price_accurate"),
+  oneWeekDirectionAccurate: boolean("one_week_direction_accurate"),
+  oneWeekWeightedScore: decimal("one_week_weighted_score", { precision: 5, scale: 4 }),
   
   // 1-month prediction
   oneMonthPrice: decimal("one_month_price", { precision: 10, scale: 2 }).notNull(),
@@ -44,6 +50,13 @@ export const predictions = pgTable("predictions", {
   oneMonthDirection: varchar("one_month_direction", { length: 10 }).notNull(),
   oneMonthActualPrice: decimal("one_month_actual_price", { precision: 10, scale: 2 }),
   oneMonthAccurate: boolean("one_month_accurate"),
+  oneMonthPriceAccurate: boolean("one_month_price_accurate"),
+  oneMonthDirectionAccurate: boolean("one_month_direction_accurate"),
+  oneMonthWeightedScore: decimal("one_month_weighted_score", { precision: 5, scale: 4 }),
+  
+  // Evaluation metadata
+  lastEvaluatedAt: timestamp("last_evaluated_at"),
+  priceThreshold: decimal("price_threshold", { precision: 5, scale: 2 }).default("5.00"), // Default 5% accuracy threshold
   
   // Technical analysis context
   rsi: decimal("rsi", { precision: 5, scale: 2 }),
