@@ -59,8 +59,18 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     refetchInterval: false, // Disable automatic refetching
   });
 
-  const hasTodaysPrediction = (todayCheck as any)?.hasPrediction || false;
-  const existingPrediction = (todayCheck as any)?.prediction;
+  const [forceGenerate, setForceGenerate] = useState(false);
+  const [hasStoredToday, setHasStoredToday] = useState(false);
+  const [manualExistingPrediction, setManualExistingPrediction] = useState<any>(null);
+
+  // Clear manual prediction when symbol changes
+  useEffect(() => {
+    setManualExistingPrediction(null);
+    setHasStoredToday(false);
+  }, [symbol]);
+
+  const hasTodaysPrediction = (todayCheck as any)?.hasPrediction || !!manualExistingPrediction;
+  const existingPrediction = (todayCheck as any)?.prediction || manualExistingPrediction;
 
   console.log(`[PREDICTION_STATE] ${symbol}:`, {
     checkingToday,
@@ -69,8 +79,11 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     todayCheckData: todayCheck
   });
 
-  const [forceGenerate, setForceGenerate] = useState(false);
-  const [hasStoredToday, setHasStoredToday] = useState(false);
+  // Clear manual prediction when symbol changes
+  useEffect(() => {
+    setManualExistingPrediction(null);
+    setHasStoredToday(false);
+  }, [symbol]);
   
   const { data: prediction, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction"],
@@ -93,7 +106,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     },
     refetchOnWindowFocus: false,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours - predictions are valid for a day
-    enabled: (!hasTodaysPrediction && !checkingToday && !hasStoredToday) || forceGenerate, // Only generate if no existing prediction OR forced
+    enabled: (!hasTodaysPrediction && !checkingToday && !hasStoredToday && !manualExistingPrediction) || forceGenerate, // Only generate if no existing prediction OR forced
     retry: (failureCount, error) => {
       // Don't retry duplicate prediction errors
       if (error.message === "DUPLICATE_PREDICTION") {
@@ -110,17 +123,25 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     error: error?.message
   });
 
-  // Handle duplicate errors by forcing fetch of existing prediction
+  // Handle duplicate errors by manually fetching existing prediction
   useEffect(() => {
-    if (error?.message === "DUPLICATE_PREDICTION") {
-      console.log(`[DUPLICATE_HANDLER] ${symbol}: Duplicate error detected, forcing fresh fetch`);
-      // Force a fresh fetch by removing cache and refetching
-      queryClient.removeQueries({ queryKey: ["/api/stocks", symbol, "prediction/today"] });
-      setTimeout(() => {
-        refetchTodayCheck();
-      }, 100);
+    if (error?.message === "DUPLICATE_PREDICTION" && !manualExistingPrediction) {
+      console.log(`[DUPLICATE_HANDLER] ${symbol}: Duplicate error detected, fetching existing prediction`);
+      
+      // Manually fetch the existing prediction
+      fetch(`/api/stocks/${symbol}/prediction/today`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.hasPrediction && data.prediction) {
+            console.log(`[DUPLICATE_HANDLER] ${symbol}: Found existing prediction, setting manually`);
+            setManualExistingPrediction(data.prediction);
+          }
+        })
+        .catch(err => {
+          console.error(`[DUPLICATE_HANDLER] ${symbol}: Error fetching existing prediction:`, err);
+        });
     }
-  }, [error?.message, symbol, refetchTodayCheck, queryClient]);
+  }, [error?.message, symbol, manualExistingPrediction]);
 
   // Mutation to store prediction in database
   const storePredictionMutation = useMutation({
