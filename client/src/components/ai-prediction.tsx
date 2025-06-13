@@ -74,6 +74,13 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     queryFn: async () => {
       console.log(`[PREDICTION_GENERATION] ${symbol}: Starting new prediction generation`);
       const response = await fetch(`/api/stocks/${symbol}/prediction`);
+      
+      if (response.status === 409) {
+        // Prediction already exists - don't treat as error
+        console.log(`[PREDICTION_GENERATION] ${symbol}: Server prevented duplicate prediction`);
+        throw new Error("DUPLICATE_PREDICTION");
+      }
+      
       if (!response.ok) {
         throw new Error("Failed to fetch prediction");
       }
@@ -104,14 +111,21 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
         body: JSON.stringify(predictionData),
       });
       
+      if (response.status === 409) {
+        // Duplicate prediction - this is expected behavior
+        const result = await response.json();
+        console.log(`[PREDICTION_STORAGE] ${symbol}: Duplicate prediction prevented by server`);
+        return result;
+      }
+      
       if (!response.ok) {
         throw new Error("Failed to store prediction");
       }
       
       return response.json();
     },
-    onSuccess: () => {
-      console.log(`[PREDICTION_STORAGE_SUCCESS] ${symbol}: Prediction stored, invalidating caches`);
+    onSuccess: (data) => {
+      console.log(`[PREDICTION_STORAGE_SUCCESS] ${symbol}: Prediction operation completed`);
       // Mark as stored today to prevent duplicate generation
       setHasStoredToday(true);
       // Invalidate predictions cache to refresh the analytics dashboard
@@ -121,6 +135,9 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
       // Force refetch of today's check
       refetchTodayCheck();
     },
+    onError: (error) => {
+      console.error(`[PREDICTION_STORAGE_ERROR] ${symbol}:`, error);
+    }
   });
 
   // Auto-store prediction when it's successfully generated
@@ -155,7 +172,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
           oneMonthDirection: oneMonthPred.direction,
           trend: prediction.technicalAnalysis.trend,
           recommendation: prediction.technicalAnalysis.recommendation,
-          generatedAt: prediction.generatedAt,
+          generatedAt: new Date(prediction.generatedAt),
         };
 
         console.log(`[PREDICTION_STORAGE_EFFECT] ${symbol}: Storing prediction data:`, predictionData);
@@ -227,6 +244,10 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     ? convertDbPredictionToDisplay(existingPrediction)
     : prediction;
 
+  // Handle duplicate prediction error by treating it as success
+  const isDuplicateError = error?.message === "DUPLICATE_PREDICTION";
+  const effectiveHasPrediction = hasTodaysPrediction || isDuplicateError;
+
   const getDirectionIcon = (direction: string) => {
     switch (direction) {
       case "up":
@@ -297,7 +318,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
             <Skeleton className="h-8 w-1/2" />
             <Skeleton className="h-20 w-full" />
           </div>
-        ) : hasTodaysPrediction && existingPrediction ? (
+        ) : effectiveHasPrediction && existingPrediction ? (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <div className="flex items-center space-x-2 mb-2">

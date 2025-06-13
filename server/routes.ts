@@ -808,6 +808,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`[PREDICTION_GENERATION] Starting generation for ${symbol}`);
       
+      // Check if prediction already exists for today BEFORE generating
+      const hasTodaysPrediction = await storage.hasTodaysPrediction(symbol);
+      if (hasTodaysPrediction) {
+        console.log(`[PREDICTION_GENERATION] ${symbol} - Already has today's prediction, skipping generation`);
+        return res.status(409).json({ 
+          message: "Prediction already exists for today", 
+          duplicate: true 
+        });
+      }
+      
       // Get current quote
       const quote = await fetchStockQuote(symbol);
       if (!quote) {
@@ -916,6 +926,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentPrice: req.body.currentPrice,
         bodyKeys: Object.keys(req.body)
       });
+      
+      // Check if prediction already exists for today before storing
+      const hasTodaysPrediction = await storage.hasTodaysPrediction(req.body.symbol);
+      if (hasTodaysPrediction) {
+        console.log(`[PREDICTION_STORAGE] ${req.body.symbol} already has today's prediction - rejecting duplicate`);
+        return res.status(409).json({ 
+          message: "Prediction already exists for today",
+          duplicate: true 
+        });
+      }
       
       const predictionData = insertPredictionSchema.parse(req.body);
       console.log(`[PREDICTION_STORAGE] Schema validation passed for ${predictionData.symbol}`);
