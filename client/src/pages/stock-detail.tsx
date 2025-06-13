@@ -2,25 +2,16 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, BarChart3, FileText } from "lucide-react";
-import { formatCurrency, formatPercent, getChangeColor } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import PredictionNarrative from "@/components/prediction-narrative";
 import AIPrediction from "@/components/ai-prediction";
-import type { StockQuote } from "@shared/schema";
 
 export default function StockDetailPage() {
   const params = useParams();
   const [, setLocation] = useLocation();
   const symbol = params.symbol?.toUpperCase();
-
-  // Fetch stock quote
-  const { data: quote, isLoading: quoteLoading } = useQuery<StockQuote>({
-    queryKey: ["/api/stocks", symbol, "quote"],
-    enabled: !!symbol,
-  });
 
   // Check for existing prediction
   const { data: todayCheck } = useQuery({
@@ -61,60 +52,8 @@ export default function StockDetailPage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">{symbol}</h1>
-          {quote && (
-            <p className="text-lg text-gray-600">{quote.companyName}</p>
-          )}
         </div>
       </div>
-
-      {/* Stock Price Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Current Price</span>
-            {quote && (
-              <Badge variant={quote.change >= 0 ? "default" : "destructive"}>
-                {quote.change >= 0 ? "+" : ""}{formatPercent(quote.changePercent)}
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {quoteLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-32" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-          ) : quote ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <div className="text-3xl font-bold">{formatCurrency(quote.price)}</div>
-                <div className={`text-sm ${getChangeColor(quote.change)}`}>
-                  {quote.change >= 0 ? "+" : ""}{formatCurrency(quote.change)} ({formatPercent(quote.changePercent)})
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">Volume</div>
-                <div className="font-semibold">{quote.volume?.toLocaleString() || "N/A"}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">Market Cap</div>
-                <div className="font-semibold">
-                  {quote.marketCap ? `$${(quote.marketCap / 1e9).toFixed(1)}B` : "N/A"}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">P/E Ratio</div>
-                <div className="font-semibold">{quote.peRatio?.toFixed(2) || "N/A"}</div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-4 text-gray-500">
-              Unable to load stock data
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="prediction" className="w-full">
