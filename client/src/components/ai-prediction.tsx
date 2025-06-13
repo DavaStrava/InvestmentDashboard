@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus, Brain, AlertTriangle } from "lucide-react";
 import { formatCurrency, formatPercent, getChangeColor } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
 interface AIPredictionProps {
   symbol: string;
@@ -46,6 +47,21 @@ interface StockPrediction {
 
 export default function AIPrediction({ symbol }: AIPredictionProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Check if prediction already exists for today
+  const { data: existingPredictions } = useQuery({
+    queryKey: ["/api/predictions", symbol],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Check if we already have a prediction for today
+  const hasTodaysPrediction = existingPredictions && Array.isArray(existingPredictions) && 
+    existingPredictions.some((pred: any) => {
+      const predDate = new Date(pred.predictionDate);
+      const today = new Date();
+      return predDate.toDateString() === today.toDateString();
+    });
 
   const { data: prediction, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction"],
@@ -57,9 +73,54 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
       return response.json() as Promise<StockPrediction>;
     },
     refetchOnWindowFocus: false,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    enabled: false, // Only fetch when user requests
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours - predictions are valid for a day
+    enabled: !hasTodaysPrediction, // Auto-fetch if no prediction exists for today
   });
+
+  // Mutation to store prediction in database
+  const storePredictionMutation = useMutation({
+    mutationFn: async (predictionData: any) => {
+      return apiRequest("/api/predictions", {
+        method: "POST",
+        body: JSON.stringify(predictionData),
+      });
+    },
+    onSuccess: () => {
+      // Invalidate predictions cache to refresh the analytics dashboard
+      queryClient.invalidateQueries({ queryKey: ["/api/predictions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/predictions/accuracy"] });
+    },
+  });
+
+  // Auto-store prediction when it's successfully generated
+  useEffect(() => {
+    if (prediction && !hasTodaysPrediction) {
+      const oneDayPred = prediction.predictions.find(p => p.timeframe === "1 day");
+      const oneWeekPred = prediction.predictions.find(p => p.timeframe === "1 week");
+      const oneMonthPred = prediction.predictions.find(p => p.timeframe === "1 month");
+
+      if (oneDayPred && oneWeekPred && oneMonthPred) {
+        const predictionData = {
+          symbol: prediction.symbol,
+          currentPrice: prediction.currentPrice.toString(),
+          oneDayPrice: oneDayPred.predictedPrice.toString(),
+          oneDayConfidence: oneDayPred.confidence,
+          oneDayDirection: oneDayPred.direction,
+          oneWeekPrice: oneWeekPred.predictedPrice.toString(),
+          oneWeekConfidence: oneWeekPred.confidence,
+          oneWeekDirection: oneWeekPred.direction,
+          oneMonthPrice: oneMonthPred.predictedPrice.toString(),
+          oneMonthConfidence: oneMonthPred.confidence,
+          oneMonthDirection: oneMonthPred.direction,
+          trend: prediction.technicalAnalysis.trend,
+          recommendation: prediction.technicalAnalysis.recommendation,
+          generatedAt: prediction.generatedAt,
+        };
+
+        storePredictionMutation.mutate(predictionData);
+      }
+    }
+  }, [prediction, hasTodaysPrediction]);
 
   const getDirectionIcon = (direction: string) => {
     switch (direction) {
