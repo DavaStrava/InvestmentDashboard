@@ -10,7 +10,8 @@ import StockDetailModal from "@/components/stock-detail-modal";
 import AddStockModal from "@/components/add-stock-modal";
 import CSVUploadModal from "@/components/csv-upload-modal";
 import { Button } from "@/components/ui/button";
-import { ChartLine, Plus, Bell, Upload } from "lucide-react";
+import { ChartLine, Plus, Bell, Upload, BarChart3 } from "lucide-react";
+import { Link } from "wouter";
 
 type TabType = "portfolio" | "watchlist" | "analytics";
 
@@ -75,12 +76,23 @@ export default function Portfolio() {
                 <StockSearch onSelectStock={setSelectedStock} />
               </div>
 
+              <Link href="/dashboard/predictions">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 sm:h-9"
+                >
+                  <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">AI Analytics</span>
+                </Button>
+              </Link>
+
               {activeTab === "portfolio" && (
                 <Button
                   onClick={() => setShowCSVUpload(true)}
                   size="sm"
                   variant="outline"
-                  className="h-8 sm:h-9 mr-2"
+                  className="h-8 sm:h-9"
                 >
                   <Upload className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
                   <span className="hidden sm:inline">Import CSV</span>
