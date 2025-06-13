@@ -354,20 +354,30 @@ export class DatabaseStorage implements IStorage {
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
       
+      console.log(`[STORAGE_CHECK] ${symbol}: Checking predictions between ${startOfDay.toISOString()} and ${endOfDay.toISOString()}`);
+      
       const todaysPredictions = await db
         .select()
         .from(predictions)
         .where(eq(predictions.symbol, symbol));
+      
+      console.log(`[STORAGE_CHECK] ${symbol}: Found ${todaysPredictions.length} total predictions`);
+      
+      todaysPredictions.forEach((pred, index) => {
+        const predDate = new Date(pred.predictionDate);
+        const isToday = predDate >= startOfDay && predDate < endOfDay;
+        console.log(`[STORAGE_CHECK] ${symbol}: Prediction ${index + 1} - ID:${pred.id}, Date:${predDate.toISOString()}, IsToday:${isToday}`);
+      });
       
       const hasTodayPrediction = todaysPredictions.some(pred => {
         const predDate = new Date(pred.predictionDate);
         return predDate >= startOfDay && predDate < endOfDay;
       });
       
-      console.log(`[PREDICTION_CHECK] ${symbol}: ${hasTodayPrediction ? 'HAS' : 'NO'} today's prediction`);
+      console.log(`[STORAGE_CHECK] ${symbol}: Final result - ${hasTodayPrediction ? 'HAS' : 'NO'} today's prediction`);
       return hasTodayPrediction;
     } catch (error) {
-      console.error("Error checking today's prediction:", error);
+      console.error(`[STORAGE_CHECK] ${symbol}: Error checking today's prediction:`, error);
       return false;
     }
   }

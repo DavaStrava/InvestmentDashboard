@@ -911,8 +911,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new prediction
   app.post("/api/predictions", async (req, res) => {
     try {
+      console.log(`[PREDICTION_STORAGE] Attempting to store prediction:`, {
+        symbol: req.body.symbol,
+        currentPrice: req.body.currentPrice,
+        bodyKeys: Object.keys(req.body)
+      });
+      
       const predictionData = insertPredictionSchema.parse(req.body);
+      console.log(`[PREDICTION_STORAGE] Schema validation passed for ${predictionData.symbol}`);
+      
       const prediction = await storage.createPrediction(predictionData);
+      console.log(`[PREDICTION_STORAGE] ${predictionData.symbol} prediction saved to database with ID: ${prediction.id}`);
+      
       res.json(prediction);
     } catch (error) {
       console.error("Predictions create error:", error);

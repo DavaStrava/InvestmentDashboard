@@ -117,7 +117,17 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
 
   // Auto-store prediction when it's successfully generated
   useEffect(() => {
+    console.log(`[PREDICTION_STORAGE_EFFECT] ${symbol}:`, {
+      hasPrediction: !!prediction,
+      hasTodaysPrediction,
+      checkingToday,
+      isPending: storePredictionMutation.isPending,
+      shouldStore: prediction && !hasTodaysPrediction && !checkingToday && !storePredictionMutation.isPending
+    });
+
     if (prediction && !hasTodaysPrediction && !checkingToday && !storePredictionMutation.isPending) {
+      console.log(`[PREDICTION_STORAGE_EFFECT] ${symbol}: Attempting to store prediction`);
+      
       const oneDayPred = prediction.predictions.find(p => p.timeframe === "1 day");
       const oneWeekPred = prediction.predictions.find(p => p.timeframe === "1 week");
       const oneMonthPred = prediction.predictions.find(p => p.timeframe === "1 month");
@@ -140,7 +150,14 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
           generatedAt: prediction.generatedAt,
         };
 
+        console.log(`[PREDICTION_STORAGE_EFFECT] ${symbol}: Storing prediction data:`, predictionData);
         storePredictionMutation.mutate(predictionData);
+      } else {
+        console.log(`[PREDICTION_STORAGE_EFFECT] ${symbol}: Missing prediction timeframes`, {
+          has1Day: !!oneDayPred,
+          has1Week: !!oneWeekPred,
+          has1Month: !!oneMonthPred
+        });
       }
     }
   }, [prediction, hasTodaysPrediction, checkingToday]);
