@@ -50,9 +50,9 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
   const queryClient = useQueryClient();
 
   // Check if prediction already exists for today
-  const { data: todayCheck, isLoading: checkingToday } = useQuery({
+  const { data: todayCheck, isLoading: checkingToday, refetch: refetchTodayCheck } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction/today"],
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours - keep this fresh all day
+    staleTime: 0, // Always fresh to catch newly stored predictions
     refetchOnWindowFocus: false,
   });
 
@@ -66,6 +66,9 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     todayCheckData: todayCheck
   });
 
+  const [forceGenerate, setForceGenerate] = useState(false);
+  const [hasStoredToday, setHasStoredToday] = useState(false);
+  
   const { data: prediction, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction"],
     queryFn: async () => {
@@ -80,7 +83,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     },
     refetchOnWindowFocus: false,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours - predictions are valid for a day
-    enabled: !hasTodaysPrediction && !checkingToday, // Only generate if no existing prediction AND not currently checking
+    enabled: (!hasTodaysPrediction && !checkingToday) || forceGenerate, // Only generate if no existing prediction OR forced
   });
 
   console.log(`[PREDICTION_QUERY_STATE] ${symbol}:`, {
@@ -108,10 +111,13 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
       return response.json();
     },
     onSuccess: () => {
+      console.log(`[PREDICTION_STORAGE_SUCCESS] ${symbol}: Prediction stored, invalidating caches`);
       // Invalidate predictions cache to refresh the analytics dashboard
       queryClient.invalidateQueries({ queryKey: ["/api/predictions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/predictions/accuracy"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stocks", symbol, "prediction/today"] });
+      // Force refetch of today's check
+      refetchTodayCheck();
     },
   });
 
@@ -128,9 +134,9 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     if (prediction && !hasTodaysPrediction && !checkingToday && !storePredictionMutation.isPending) {
       console.log(`[PREDICTION_STORAGE_EFFECT] ${symbol}: Attempting to store prediction`);
       
-      const oneDayPred = prediction.predictions.find(p => p.timeframe === "1 day");
-      const oneWeekPred = prediction.predictions.find(p => p.timeframe === "1 week");
-      const oneMonthPred = prediction.predictions.find(p => p.timeframe === "1 month");
+      const oneDayPred = prediction.predictions.find(p => p.timeframe === "1 day" || p.timeframe === "1 Day");
+      const oneWeekPred = prediction.predictions.find(p => p.timeframe === "1 week" || p.timeframe === "1 Week");
+      const oneMonthPred = prediction.predictions.find(p => p.timeframe === "1 month" || p.timeframe === "1 Month");
 
       if (oneDayPred && oneWeekPred && oneMonthPred) {
         const predictionData = {
@@ -152,6 +158,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
 
         console.log(`[PREDICTION_STORAGE_EFFECT] ${symbol}: Storing prediction data:`, predictionData);
         storePredictionMutation.mutate(predictionData);
+        setForceGenerate(false); // Reset force flag after storing
       } else {
         console.log(`[PREDICTION_STORAGE_EFFECT] ${symbol}: Missing prediction timeframes`, {
           has1Day: !!oneDayPred,
