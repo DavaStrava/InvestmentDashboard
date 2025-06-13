@@ -797,6 +797,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Prediction tracking API routes
+  
+  // Get prediction history for a symbol
+  app.get("/api/predictions/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const predictions = await storage.getPredictions(symbol);
+      res.json(predictions);
+    } catch (error) {
+      console.error("Predictions get error:", error);
+      res.status(500).json({ message: "Failed to fetch predictions" });
+    }
+  });
+
+  // Get all predictions
+  app.get("/api/predictions", async (req, res) => {
+    try {
+      const predictions = await storage.getPredictions();
+      res.json(predictions);
+    } catch (error) {
+      console.error("Predictions get all error:", error);
+      res.status(500).json({ message: "Failed to fetch predictions" });
+    }
+  });
+
+  // Get prediction accuracy stats
+  app.get("/api/predictions/accuracy/:symbol?", async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase();
+      const accuracy = await storage.getPredictionAccuracy(symbol);
+      res.json(accuracy);
+    } catch (error) {
+      console.error("Predictions accuracy error:", error);
+      res.status(500).json({ message: "Failed to fetch prediction accuracy" });
+    }
+  });
+
+  // Update prediction with actual price (for backtesting)
+  app.put("/api/predictions/:id/actual", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { timeframe, actualPrice, accurate } = req.body;
+      
+      if (!timeframe || actualPrice === undefined || accurate === undefined) {
+        return res.status(400).json({ message: "Missing required fields: timeframe, actualPrice, accurate" });
+      }
+
+      const updatedPrediction = await storage.updatePredictionActuals(
+        id, 
+        timeframe as '1d' | '1w' | '1m', 
+        parseFloat(actualPrice), 
+        Boolean(accurate)
+      );
+
+      if (!updatedPrediction) {
+        return res.status(404).json({ message: "Prediction not found" });
+      }
+
+      res.json(updatedPrediction);
+    } catch (error) {
+      console.error("Predictions update error:", error);
+      res.status(500).json({ message: "Failed to update prediction" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
