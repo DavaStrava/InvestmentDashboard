@@ -7,6 +7,7 @@ import { logger, validateNumeric, timeAsyncOperation } from "./logger";
 import multer from "multer";
 import csv from "csv-parser";
 import { Readable } from "stream";
+import { predictionEvaluator } from "./prediction-evaluator";
 
 // FMP API Configuration
 const FMP_API_KEY = process.env.FMP_API_KEY;
@@ -1015,7 +1016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Manually trigger prediction evaluation
   app.post("/api/predictions/evaluate", async (req, res) => {
     try {
-      const { predictionEvaluator } = require("./prediction-evaluator");
+      const { predictionEvaluator } = await import("./prediction-evaluator");
       await predictionEvaluator.evaluateDuePredictions();
       res.json({ message: "Prediction evaluation triggered successfully" });
     } catch (error) {

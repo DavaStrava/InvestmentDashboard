@@ -98,28 +98,50 @@ export class PredictionEvaluator {
         const predictionDate = new Date(prediction.predictionDate);
         let needsEvaluation = false;
 
-        // Check 1-day predictions 
-        // Evaluate after market close (4 PM ET) or after 25 hours, whichever comes first
         const hoursSincePrediction = (now.getTime() - predictionDate.getTime()) / (60 * 60 * 1000);
-        const currentHour = now.getUTCHours();
-        const isAfterMarketClose = currentHour >= 21 || currentHour < 13; // Market closes at 4 PM ET (21 UTC)
+        const daysSincePrediction = hoursSincePrediction / 24;
         
-        if (prediction.oneDayAccurate === null && 
-            (hoursSincePrediction > 25 || (hoursSincePrediction > 2 && isAfterMarketClose))) {
+        // Check if market is currently closed (after 4 PM ET or before 9:30 AM ET)
+        const currentHour = now.getUTCHours();
+        const currentMinute = now.getUTCMinutes();
+        const isAfterMarketClose = currentHour >= 21 || (currentHour < 13) || (currentHour === 13 && currentMinute < 30);
+        
+        // 1-day predictions: evaluate after market close on the same day or next trading day
+        // If prediction was made during market hours, evaluate after market close same day
+        // If prediction was made after market close, evaluate after next market close
+        const shouldEvaluateOneDay = prediction.oneDayAccurate === null && (
+          (daysSincePrediction >= 1 && isAfterMarketClose) ||
+          (hoursSincePrediction >= 2 && isAfterMarketClose && daysSincePrediction < 1)
+        );
+        
+        if (shouldEvaluateOneDay) {
+          logger.info('EVALUATION', `Evaluating 1-day prediction for ${prediction.symbol}`, {
+            hoursSince: hoursSincePrediction.toFixed(2),
+            daysSince: daysSincePrediction.toFixed(2),
+            isAfterMarketClose
+          });
           await this.evaluateOneDayPrediction(prediction);
           needsEvaluation = true;
         }
 
-        // Check 1-week predictions (evaluate after 7 days + 1 day buffer)
+        // 1-week predictions: evaluate after 7 calendar days + market close
         if (prediction.oneWeekAccurate === null && 
-            now.getTime() - predictionDate.getTime() > (8 * 24 * 60 * 60 * 1000)) {
+            daysSincePrediction >= 7 && isAfterMarketClose) {
+          logger.info('EVALUATION', `Evaluating 1-week prediction for ${prediction.symbol}`, {
+            daysSince: daysSincePrediction.toFixed(2),
+            isAfterMarketClose
+          });
           await this.evaluateOneWeekPrediction(prediction);
           needsEvaluation = true;
         }
 
-        // Check 1-month predictions (evaluate after 30 days + 2 days buffer)
+        // 1-month predictions: evaluate after 30 calendar days + market close
         if (prediction.oneMonthAccurate === null && 
-            now.getTime() - predictionDate.getTime() > (32 * 24 * 60 * 60 * 1000)) {
+            daysSincePrediction >= 30 && isAfterMarketClose) {
+          logger.info('EVALUATION', `Evaluating 1-month prediction for ${prediction.symbol}`, {
+            daysSince: daysSincePrediction.toFixed(2),
+            isAfterMarketClose
+          });
           await this.evaluateOneMonthPrediction(prediction);
           needsEvaluation = true;
         }
@@ -233,7 +255,31 @@ export class PredictionEvaluator {
   }
 
   /**
-   * Start automated evaluation service (runs every hour)
+   * Check if current time is a trading day (Monday-Friday, excluding major holidays)
+   */
+  private isTradingDay(date: Date): boolean {
+    const dayOfWeek = date.getDay();
+    // 0 = Sunday, 6 = Saturday
+    return dayOfWeek >= 1 && dayOfWeek <= 5;
+  }
+
+  /**
+   * Get the next trading day after market close for evaluation
+   */
+  private getNextTradingDay(date: Date): Date {
+    const nextDay = new Date(date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    
+    // Skip weekends
+    while (!this.isTradingDay(nextDay)) {
+      nextDay.setDate(nextDay.getDate() + 1);
+    }
+    
+    return nextDay;
+  }
+
+  /**
+   * Start automated evaluation service with market-aware scheduling
    */
   startEvaluationService(): void {
     logger.info('EVALUATION', 'Starting automated prediction evaluation service');
@@ -241,10 +287,24 @@ export class PredictionEvaluator {
     // Run immediately
     this.evaluateDuePredictions();
     
-    // Then run every hour
+    // Run more frequently during after-market hours (every 30 minutes)
+    // and less frequently during market hours (every 2 hours)
+    setInterval(() => {
+      const now = new Date();
+      const currentHour = now.getUTCHours();
+      const currentMinute = now.getUTCMinutes();
+      const isAfterMarketClose = currentHour >= 21 || (currentHour < 13) || (currentHour === 13 && currentMinute < 30);
+      
+      if (isAfterMarketClose) {
+        // Run more frequently after market close when evaluations are due
+        this.evaluateDuePredictions();
+      }
+    }, 30 * 60 * 1000); // 30 minutes
+    
+    // Also run every 2 hours during market hours for general maintenance
     setInterval(() => {
       this.evaluateDuePredictions();
-    }, 60 * 60 * 1000); // 1 hour
+    }, 2 * 60 * 60 * 1000); // 2 hours
   }
 }
 
