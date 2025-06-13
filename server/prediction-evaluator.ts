@@ -51,8 +51,9 @@ export class PredictionEvaluator {
   private getActualDirection(currentPrice: number, actualPrice: number): string {
     const changePercent = ((actualPrice - currentPrice) / currentPrice) * 100;
     
-    if (changePercent > 1) return "up";
-    if (changePercent < -1) return "down";
+    // Use a more reasonable threshold - any positive/negative movement counts as direction
+    if (changePercent > 0.1) return "up";      // 0.1% threshold for up
+    if (changePercent < -0.1) return "down";   // 0.1% threshold for down
     return "sideways";
   }
 
