@@ -817,6 +817,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Prediction tracking API routes
   
+  // Get enhanced prediction accuracy stats (general) - MUST come before :symbol route
+  app.get("/api/predictions/accuracy/enhanced", async (req, res) => {
+    try {
+      const accuracy = await storage.getEnhancedPredictionAccuracy();
+      res.json(accuracy);
+    } catch (error) {
+      console.error("Enhanced predictions accuracy error:", error);
+      res.status(500).json({ message: "Failed to fetch enhanced prediction accuracy" });
+    }
+  });
+
   // Get prediction accuracy stats (general) - MUST come before :symbol route
   app.get("/api/predictions/accuracy", async (req, res) => {
     try {
@@ -825,6 +836,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Predictions accuracy error:", error);
       res.status(500).json({ message: "Failed to fetch prediction accuracy" });
+    }
+  });
+
+  // Get enhanced prediction accuracy stats by symbol
+  app.get("/api/predictions/accuracy/enhanced/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const accuracy = await storage.getEnhancedPredictionAccuracy(symbol);
+      res.json(accuracy);
+    } catch (error) {
+      console.error("Enhanced predictions accuracy by symbol error:", error);
+      res.status(500).json({ message: "Failed to fetch enhanced prediction accuracy" });
     }
   });
 
