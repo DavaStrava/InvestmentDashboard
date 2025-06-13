@@ -91,6 +91,13 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     refetchOnWindowFocus: false,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours - predictions are valid for a day
     enabled: (!hasTodaysPrediction && !checkingToday && !hasStoredToday) || forceGenerate, // Only generate if no existing prediction OR forced
+    retry: (failureCount, error) => {
+      // Don't retry duplicate prediction errors
+      if (error.message === "DUPLICATE_PREDICTION") {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   console.log(`[PREDICTION_QUERY_STATE] ${symbol}:`, {
@@ -249,6 +256,17 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     ? convertDbPredictionToDisplay(existingPrediction)
     : prediction;
 
+  // Debug: Log the conversion process
+  if (existingPrediction) {
+    console.log(`[DB_CONVERSION] ${symbol}: Converting existing prediction:`, {
+      hasExistingPrediction: !!existingPrediction,
+      existingPredictionKeys: Object.keys(existingPrediction),
+      displayPredictionGenerated: !!displayPrediction,
+      oneDayPrice: existingPrediction.oneDayPrice,
+      symbol: existingPrediction.symbol
+    });
+  }
+
   // Show prediction if we have existing data OR new prediction was generated
   const shouldShowPrediction = !!displayPrediction;
 
@@ -292,7 +310,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     }
   };
 
-  if (error) {
+  if (error && !isDuplicateError && !existingPrediction) {
     return (
       <Card>
         <CardHeader>
