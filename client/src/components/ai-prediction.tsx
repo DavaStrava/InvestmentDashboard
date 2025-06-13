@@ -50,18 +50,13 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
   const queryClient = useQueryClient();
 
   // Check if prediction already exists for today
-  const { data: existingPredictions } = useQuery({
-    queryKey: ["/api/predictions", symbol],
+  const { data: todayCheck, isLoading: checkingToday } = useQuery({
+    queryKey: ["/api/stocks", symbol, "prediction/today"],
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Check if we already have a prediction for today
-  const hasTodaysPrediction = existingPredictions && Array.isArray(existingPredictions) && 
-    existingPredictions.some((pred: any) => {
-      const predDate = new Date(pred.predictionDate);
-      const today = new Date();
-      return predDate.toDateString() === today.toDateString();
-    });
+  const hasTodaysPrediction = (todayCheck as any)?.hasPrediction || false;
+  const existingPrediction = (todayCheck as any)?.prediction;
 
   const { data: prediction, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction"],
@@ -80,21 +75,31 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
   // Mutation to store prediction in database
   const storePredictionMutation = useMutation({
     mutationFn: async (predictionData: any) => {
-      return apiRequest("/api/predictions", {
+      const response = await fetch("/api/predictions", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(predictionData),
       });
+      
+      if (!response.ok) {
+        throw new Error("Failed to store prediction");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       // Invalidate predictions cache to refresh the analytics dashboard
       queryClient.invalidateQueries({ queryKey: ["/api/predictions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/predictions/accuracy"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stocks", symbol, "prediction/today"] });
     },
   });
 
   // Auto-store prediction when it's successfully generated
   useEffect(() => {
-    if (prediction && !hasTodaysPrediction) {
+    if (prediction && !hasTodaysPrediction && !checkingToday) {
       const oneDayPred = prediction.predictions.find(p => p.timeframe === "1 day");
       const oneWeekPred = prediction.predictions.find(p => p.timeframe === "1 week");
       const oneMonthPred = prediction.predictions.find(p => p.timeframe === "1 month");
@@ -120,7 +125,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
         storePredictionMutation.mutate(predictionData);
       }
     }
-  }, [prediction, hasTodaysPrediction]);
+  }, [prediction, hasTodaysPrediction, checkingToday]);
 
   const getDirectionIcon = (direction: string) => {
     switch (direction) {

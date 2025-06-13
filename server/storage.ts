@@ -28,6 +28,8 @@ export interface IStorage {
     oneMonthAccuracy: number; 
     totalPredictions: number;
   }>;
+  hasTodaysPrediction(symbol: string): Promise<boolean>;
+  getTodaysPrediction(symbol: string): Promise<Prediction | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -133,6 +135,14 @@ export class MemStorage implements IStorage {
       oneMonthAccuracy: 0,
       totalPredictions: 0,
     };
+  }
+
+  async hasTodaysPrediction(symbol: string): Promise<boolean> {
+    return false; // MemStorage doesn't persist predictions across sessions
+  }
+
+  async getTodaysPrediction(symbol: string): Promise<Prediction | undefined> {
+    return undefined; // MemStorage doesn't persist predictions across sessions
   }
 }
 
@@ -250,12 +260,9 @@ export class DatabaseStorage implements IStorage {
     oneMonthAccuracy: number; 
     totalPredictions: number;
   }> {
-    let query = db.select().from(predictions);
-    if (symbol) {
-      query = query.where(eq(predictions.symbol, symbol));
-    }
-    
-    const allPredictions = await query;
+    const allPredictions = symbol 
+      ? await db.select().from(predictions).where(eq(predictions.symbol, symbol))
+      : await db.select().from(predictions);
     
     const oneDayPredictions = allPredictions.filter(p => p.oneDayAccurate !== null);
     const oneWeekPredictions = allPredictions.filter(p => p.oneWeekAccurate !== null);
@@ -271,6 +278,39 @@ export class DatabaseStorage implements IStorage {
       oneMonthAccuracy: oneMonthPredictions.length > 0 ? (oneMonthAccurate / oneMonthPredictions.length) * 100 : 0,
       totalPredictions: allPredictions.length,
     };
+  }
+
+  async hasTodaysPrediction(symbol: string): Promise<boolean> {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    
+    const [existingPrediction] = await db
+      .select()
+      .from(predictions)
+      .where(eq(predictions.symbol, symbol))
+      .limit(1);
+    
+    if (!existingPrediction) return false;
+    
+    const predDate = new Date(existingPrediction.predictionDate);
+    return predDate >= startOfDay && predDate < endOfDay;
+  }
+
+  async getTodaysPrediction(symbol: string): Promise<Prediction | undefined> {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    
+    const allPredictions = await db
+      .select()
+      .from(predictions)
+      .where(eq(predictions.symbol, symbol));
+    
+    return allPredictions.find(pred => {
+      const predDate = new Date(pred.predictionDate);
+      return predDate >= startOfDay && predDate < endOfDay;
+    });
   }
 }
 

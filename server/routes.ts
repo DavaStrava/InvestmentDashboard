@@ -737,6 +737,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check for existing daily prediction
+  app.get("/api/stocks/:symbol/prediction/today", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const hasPrediction = await storage.hasTodaysPrediction(symbol.toUpperCase());
+      
+      if (hasPrediction) {
+        const existingPrediction = await storage.getTodaysPrediction(symbol.toUpperCase());
+        res.json({ hasPrediction: true, prediction: existingPrediction });
+      } else {
+        res.json({ hasPrediction: false });
+      }
+    } catch (error) {
+      console.error("Check daily prediction error:", error);
+      res.status(500).json({ message: "Failed to check existing prediction" });
+    }
+  });
+
   // Historical data endpoint
   app.get("/api/stocks/:symbol/history", async (req, res) => {
     try {
