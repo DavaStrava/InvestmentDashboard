@@ -28,6 +28,7 @@ export interface IStorage {
     oneMonthAccuracy: number; 
     totalPredictions: number;
   }>;
+  hasTodaysPrediction(symbol: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
