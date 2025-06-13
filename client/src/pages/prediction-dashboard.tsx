@@ -28,6 +28,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { Link } from "wouter";
+import { AccuracyDefinitions } from "@/components/accuracy-definitions";
 import {
   AlertDialog,
   AlertDialogAction,

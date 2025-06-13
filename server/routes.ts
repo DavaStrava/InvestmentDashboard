@@ -1016,7 +1016,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Manually trigger prediction evaluation
   app.post("/api/predictions/evaluate", async (req, res) => {
     try {
-      const { predictionEvaluator } = await import("./prediction-evaluator");
       await predictionEvaluator.evaluateDuePredictions();
       res.json({ message: "Prediction evaluation triggered successfully" });
     } catch (error) {
