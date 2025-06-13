@@ -207,14 +207,22 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
           oneDayPrice: oneDayPred.predictedPrice.toString(),
           oneDayConfidence: oneDayPred.confidence,
           oneDayDirection: oneDayPred.direction,
+          oneDayReasoning: oneDayPred.reasoning,
           oneWeekPrice: oneWeekPred.predictedPrice.toString(),
           oneWeekConfidence: oneWeekPred.confidence,
           oneWeekDirection: oneWeekPred.direction,
+          oneWeekReasoning: oneWeekPred.reasoning,
           oneMonthPrice: oneMonthPred.predictedPrice.toString(),
           oneMonthConfidence: oneMonthPred.confidence,
           oneMonthDirection: oneMonthPred.direction,
+          oneMonthReasoning: oneMonthPred.reasoning,
           trend: prediction.technicalAnalysis.trend,
           recommendation: prediction.technicalAnalysis.recommendation,
+          technicalAnalysisNarrative: "Technical analysis from AI prediction",
+          overallAssessment: "Overall assessment from AI analysis",
+          dataLimitations: prediction.dataLimitations ? 
+            `Limited data: ${prediction.dataLimitations.hasLimitedHistoricalData ? 'Historical' : ''} ${prediction.dataLimitations.isIntradayOnly ? 'Intraday-only' : ''} ${prediction.dataLimitations.longerTermPredictionsUncertain ? 'Long-term uncertain' : ''}`.trim() : 
+            null,
           generatedAt: new Date(prediction.generatedAt),
         };
 

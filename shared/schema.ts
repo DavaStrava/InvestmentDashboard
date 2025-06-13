@@ -63,6 +63,14 @@ export const predictions = pgTable("predictions", {
   trend: varchar("trend", { length: 10 }),
   recommendation: varchar("recommendation", { length: 10 }),
   
+  // Narrative analysis storage
+  oneDayReasoning: text("one_day_reasoning"),
+  oneWeekReasoning: text("one_week_reasoning"), 
+  oneMonthReasoning: text("one_month_reasoning"),
+  technicalAnalysisNarrative: text("technical_analysis_narrative"),
+  overallAssessment: text("overall_assessment"),
+  dataLimitations: text("data_limitations"),
+  
   // Metadata
   generatedAt: timestamp("generated_at").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

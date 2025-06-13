@@ -261,15 +261,23 @@ Use common technical analysis conventions. Provide specific, actionable insights
         oneDayPrice: prediction.predictions[0].predictedPrice.toString(),
         oneDayConfidence: prediction.predictions[0].confidence,
         oneDayDirection: prediction.predictions[0].direction,
+        oneDayReasoning: prediction.predictions[0].reasoning,
         oneWeekPrice: prediction.predictions[1].predictedPrice.toString(),
         oneWeekConfidence: prediction.predictions[1].confidence,
         oneWeekDirection: prediction.predictions[1].direction,
+        oneWeekReasoning: prediction.predictions[1].reasoning,
         oneMonthPrice: prediction.predictions[2].predictedPrice.toString(),
         oneMonthConfidence: prediction.predictions[2].confidence,
         oneMonthDirection: prediction.predictions[2].direction,
+        oneMonthReasoning: prediction.predictions[2].reasoning,
         rsi: parseFloat(prediction.technicalAnalysis.rsi).toString(),
         trend: prediction.technicalAnalysis.trend,
         recommendation: prediction.technicalAnalysis.recommendation,
+        technicalAnalysisNarrative: analysis.technical.analysis_summary || "Technical analysis summary unavailable",
+        overallAssessment: analysis.recommendation_reasoning || "Overall assessment unavailable",
+        dataLimitations: prediction.dataLimitations ? 
+          `Limited data: ${prediction.dataLimitations.hasLimitedHistoricalData ? 'Historical' : ''} ${prediction.dataLimitations.isIntradayOnly ? 'Intraday-only' : ''} ${prediction.dataLimitations.longerTermPredictionsUncertain ? 'Long-term uncertain' : ''}`.trim() : 
+          null,
         generatedAt: new Date(prediction.generatedAt),
       });
       console.log(`[PREDICTION_STORED] ${symbol} prediction saved to database`);
