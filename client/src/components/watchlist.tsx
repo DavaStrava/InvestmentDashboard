@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatPercent, getChangeColor } from "@/lib/utils";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ExternalLink } from "lucide-react";
+import { Link } from "wouter";
 
 interface WatchlistProps {
   onSelectStock: (symbol: string) => void;
@@ -98,34 +99,37 @@ export default function Watchlist({ onSelectStock, expanded = false, onAddToWatc
         ) : (
           <div className="divide-y divide-gray-200">
             {Array.isArray(watchlist) && watchlist.slice(0, expanded ? undefined : 6).map((item: any) => (
-              <div
-                key={item.id}
-                className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group"
-                onClick={() => onSelectStock(item.symbol)}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-900">{item.symbol}</p>
-                    <p className="text-xs text-gray-500">{item.companyName}</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-900">{formatCurrency(item.currentPrice)}</p>
-                      <p className={`text-xs ${getChangeColor(item.dailyChange)}`}>
-                        {formatPercent(item.dailyChangePercent)}
-                      </p>
+              <div key={item.id} className="group">
+                <Link href={`/stock/${item.symbol}`}>
+                  <div className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{item.symbol}</p>
+                          <ExternalLink className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{item.companyName}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(item.currentPrice)}</p>
+                          <p className={`text-xs ${getChangeColor(item.dailyChange)}`}>
+                            {formatPercent(item.dailyChangePercent)}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6"
+                          onClick={(e) => handleRemoveFromWatchlist(item.id, e)}
+                          disabled={removeFromWatchlistMutation.isPending}
+                        >
+                          <Trash2 className="w-3 h-3 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6"
-                      onClick={(e) => handleRemoveFromWatchlist(item.id, e)}
-                      disabled={removeFromWatchlistMutation.isPending}
-                    >
-                      <Trash2 className="w-3 h-3 text-red-500" />
-                    </Button>
                   </div>
-                </div>
+                </Link>
               </div>
             ))}
           </div>

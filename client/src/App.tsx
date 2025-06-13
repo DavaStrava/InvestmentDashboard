@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Portfolio from "@/pages/portfolio";
 import PredictionDashboard from "@/pages/prediction-dashboard";
+import StockDetailPage from "@/pages/stock-detail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -13,6 +14,7 @@ function Router() {
       <Route path="/" component={Portfolio} />
       <Route path="/portfolio" component={Portfolio} />
       <Route path="/prediction-dashboard" component={PredictionDashboard} />
+      <Route path="/stock/:symbol" component={StockDetailPage} />
       <Route component={NotFound} />
     </Switch>
   );
