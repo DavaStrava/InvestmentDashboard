@@ -62,6 +62,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
   const [forceGenerate, setForceGenerate] = useState(false);
   const [hasStoredToday, setHasStoredToday] = useState(false);
   const [manualExistingPrediction, setManualExistingPrediction] = useState<any>(null);
+  const [storageAttempted, setStorageAttempted] = useState(false);
 
   // Clear manual prediction when symbol changes
   useEffect(() => {
@@ -83,6 +84,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
   useEffect(() => {
     setManualExistingPrediction(null);
     setHasStoredToday(false);
+    setStorageAttempted(false);
   }, [symbol]);
   
   const { data: prediction, isLoading, error, refetch } = useQuery({
@@ -193,8 +195,9 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
       shouldStore: prediction && !hasTodaysPrediction && !checkingToday && !storePredictionMutation.isPending
     });
 
-    if (prediction && !hasTodaysPrediction && !checkingToday && !storePredictionMutation.isPending) {
+    if (prediction && !hasTodaysPrediction && !checkingToday && !storePredictionMutation.isPending && !storageAttempted) {
       console.log(`[PREDICTION_STORAGE_EFFECT] ${symbol}: Attempting to store prediction`);
+      setStorageAttempted(true);
       
       const oneDayPred = prediction.predictions.find(p => p.timeframe === "1 day" || p.timeframe === "1 Day");
       const oneWeekPred = prediction.predictions.find(p => p.timeframe === "1 week" || p.timeframe === "1 Week");
@@ -237,7 +240,7 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
         });
       }
     }
-  }, [prediction, hasTodaysPrediction, checkingToday]);
+  }, [prediction, hasTodaysPrediction, checkingToday, storageAttempted]);
 
   // Convert existing database prediction to display format
   const convertDbPredictionToDisplay = (dbPrediction: any): StockPrediction => {
