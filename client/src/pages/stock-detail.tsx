@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, BarChart3, FileText } from "lucide-react";
+import { ArrowLeft, BarChart3, FileText } from "lucide-react";
 import { formatCurrency, formatPercent, getChangeColor } from "@/lib/utils";
 import PredictionNarrative from "@/components/prediction-narrative";
 import AIPrediction from "@/components/ai-prediction";
@@ -45,8 +45,6 @@ export default function StockDetailPage() {
       </div>
     );
   }
-
-  const changeColor = quote ? getChangeColor(quote.change) : "text-gray-500";
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -91,7 +89,7 @@ export default function StockDetailPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <div className="text-3xl font-bold">{formatCurrency(quote.price)}</div>
-                <div className={`text-sm ${changeColor}`}>
+                <div className={`text-sm ${getChangeColor(quote.change)}`}>
                   {quote.change >= 0 ? "+" : ""}{formatCurrency(quote.change)} ({formatPercent(quote.changePercent)})
                 </div>
               </div>
@@ -119,68 +117,20 @@ export default function StockDetailPage() {
       </Card>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analysis" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            AI Analysis
-          </TabsTrigger>
+      <Tabs defaultValue="prediction" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="prediction" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            Predictions
+            AI Predictions
+          </TabsTrigger>
+          <TabsTrigger value="analysis" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Detailed Analysis
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Stock Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {quoteLoading ? (
-                <div className="grid grid-cols-2 gap-4">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="space-y-2">
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-6 w-16" />
-                    </div>
-                  ))}
-                </div>
-              ) : quote ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div>
-                    <div className="text-sm text-gray-500">52W High</div>
-                    <div className="font-semibold">{quote.high52Week ? formatCurrency(quote.high52Week) : "N/A"}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">52W Low</div>
-                    <div className="font-semibold">{quote.low52Week ? formatCurrency(quote.low52Week) : "N/A"}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Avg Volume</div>
-                    <div className="font-semibold">{quote.avgVolume?.toLocaleString() || "N/A"}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Dividend Yield</div>
-                    <div className="font-semibold">{quote.dividendYield ? `${quote.dividendYield.toFixed(2)}%` : "N/A"}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">EPS</div>
-                    <div className="font-semibold">{quote.eps?.toFixed(2) || "N/A"}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Beta</div>
-                    <div className="font-semibold">{quote.beta?.toFixed(2) || "N/A"}</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  Stock information unavailable
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="prediction">
+          <AIPrediction symbol={symbol} />
         </TabsContent>
 
         <TabsContent value="analysis">
@@ -195,20 +145,10 @@ export default function StockDetailPage() {
                   <p className="text-gray-500 mb-4">
                     Generate an AI prediction first to view detailed analysis and reasoning.
                   </p>
-                  <Button onClick={() => {
-                    const tabs = document.querySelector('[data-state="active"][value="prediction"]') as HTMLElement;
-                    if (tabs) tabs.click();
-                  }}>
-                    Generate Prediction
-                  </Button>
                 </div>
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-
-        <TabsContent value="prediction">
-          <AIPrediction symbol={symbol} />
         </TabsContent>
       </Tabs>
     </div>
