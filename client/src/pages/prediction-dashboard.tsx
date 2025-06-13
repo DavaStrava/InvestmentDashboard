@@ -419,6 +419,9 @@ export default function PredictionDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Accuracy Definitions */}
+        <AccuracyDefinitions />
       </div>
     </div>
   );
