@@ -76,7 +76,7 @@ export default function Portfolio() {
                 <StockSearch onSelectStock={setSelectedStock} />
               </div>
 
-              <Link href="/dashboard/predictions">
+              <Link href="/prediction-dashboard">
                 <Button
                   size="sm"
                   variant="outline"
