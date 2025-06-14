@@ -30,19 +30,47 @@ export default function StockDetailPage() {
   });
 
   // Check for existing prediction
-  const { data: todayCheck, refetch: refetchTodayCheck } = useQuery({
+  const { 
+    data: todayCheck, 
+    isLoading: predictionLoading,
+    error: predictionError,
+    refetch: refetchTodayCheck 
+  } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction/today"],
+    queryFn: async () => {
+      const response = await fetch(`/api/stocks/${symbol}/prediction/today`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { hasTodayCheck: false, prediction: null };
+        }
+        throw new Error(`Failed to fetch prediction: ${response.statusText}`);
+      }
+      return response.json();
+    },
     enabled: !!symbol,
-    staleTime: 1 * 60 * 1000, // 1 minute cache
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 30 * 1000, // Keep in cache for 30 seconds
     refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      // Don't retry on 404 (no prediction exists)
+      if (error instanceof Error && error.message.includes('404')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  const existingPrediction = (todayCheck as any)?.prediction;
+  const existingPrediction = todayCheck?.prediction;
   
   // Debug logging for prediction data
   console.log(`[STOCK_DETAIL] ${symbol}: Prediction data:`, {
+    predictionLoading,
+    predictionError: predictionError?.message,
     hasTodayCheck: !!todayCheck,
     hasExistingPrediction: !!existingPrediction,
+    todayCheckStructure: todayCheck ? Object.keys(todayCheck) : [],
     predictionKeys: existingPrediction ? Object.keys(existingPrediction) : [],
     oneDayReasoning: existingPrediction?.oneDayReasoning,
     technicalAnalysisNarrative: existingPrediction?.technicalAnalysisNarrative
@@ -200,11 +228,46 @@ export default function StockDetailPage() {
         </TabsContent>
 
         <TabsContent value="prediction">
-          <AIPrediction symbol={symbol} />
+          <AIPrediction 
+            symbol={symbol} 
+            existingPrediction={existingPrediction}
+            isLoading={predictionLoading}
+            onPredictionGenerated={() => refetchTodayCheck()}
+          />
         </TabsContent>
 
         <TabsContent value="analysis">
-          {existingPrediction ? (
+          {predictionLoading ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <div className="flex justify-center mb-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  </div>
+                  <p className="text-gray-500">Loading prediction analysis...</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : predictionError ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <FileText className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-red-600 mb-2">Error Loading Analysis</h3>
+                  <p className="text-gray-500 mb-4">
+                    {predictionError.message || "Failed to load prediction data"}
+                  </p>
+                  <Button 
+                    onClick={() => refetchTodayCheck()} 
+                    variant="outline"
+                    size="sm"
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : existingPrediction ? (
             <PredictionNarrative prediction={existingPrediction} />
           ) : (
             <Card>
@@ -215,6 +278,17 @@ export default function StockDetailPage() {
                   <p className="text-gray-500 mb-4">
                     Generate an AI prediction first to view detailed analysis and reasoning.
                   </p>
+                  <Button 
+                    onClick={() => {
+                      // Switch to prediction tab to generate
+                      const predictionTab = document.querySelector('[value="prediction"]') as HTMLElement;
+                      predictionTab?.click();
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Generate Prediction
+                  </Button>
                 </div>
               </CardContent>
             </Card>
