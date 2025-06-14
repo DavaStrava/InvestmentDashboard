@@ -425,52 +425,158 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
           </div>
         ) : shouldShowPrediction ? (
           <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <Brain className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">Today's Analysis Complete</span>
-              </div>
-              <p className="text-sm text-blue-700">
-                Prediction already generated today. Only one prediction per day is stored to maintain clean tracking data.
-              </p>
-            </div>
-            
-            {/* Display existing prediction data */}
-            {existingPrediction && (
+            {/* Always show prediction details when available */}
+            {(displayPrediction || existingPrediction) && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                    <div className="text-sm text-gray-500 mb-1">1 Day Prediction</div>
-                    <div className="font-semibold text-lg">
-                      {existingPrediction.oneDayPrice ? formatCurrency(parseFloat(existingPrediction.oneDayPrice)) : "N/A"}
+                {/* Show existing prediction from database */}
+                {existingPrediction && (
+                  <>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <Brain className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-800">Today's Analysis</span>
+                      </div>
+                      <p className="text-xs text-green-700">
+                        Generated on {existingPrediction.predictionDate ? new Date(existingPrediction.predictionDate).toLocaleDateString() : "today"}
+                      </p>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      {existingPrediction.oneDayConfidence || "N/A"}% confidence
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                        <div className="text-sm text-gray-500 mb-1">1 Day Prediction</div>
+                        <div className="font-semibold text-lg">
+                          {existingPrediction.oneDayPrice ? formatCurrency(parseFloat(existingPrediction.oneDayPrice)) : "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">
+                          {existingPrediction.oneDayConfidence || "N/A"}% confidence
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          {existingPrediction.oneDayDirection === "up" && <TrendingUp className="w-3 h-3 text-green-600" />}
+                          {existingPrediction.oneDayDirection === "down" && <TrendingDown className="w-3 h-3 text-red-600" />}
+                          {existingPrediction.oneDayDirection === "sideways" && <Minus className="w-3 h-3 text-gray-600" />}
+                          <span className="text-xs capitalize text-gray-600">{existingPrediction.oneDayDirection}</span>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                        <div className="text-sm text-gray-500 mb-1">1 Week Prediction</div>
+                        <div className="font-semibold text-lg">
+                          {existingPrediction.oneWeekPrice ? formatCurrency(parseFloat(existingPrediction.oneWeekPrice)) : "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">
+                          {existingPrediction.oneWeekConfidence || "N/A"}% confidence
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          {existingPrediction.oneWeekDirection === "up" && <TrendingUp className="w-3 h-3 text-green-600" />}
+                          {existingPrediction.oneWeekDirection === "down" && <TrendingDown className="w-3 h-3 text-red-600" />}
+                          {existingPrediction.oneWeekDirection === "sideways" && <Minus className="w-3 h-3 text-gray-600" />}
+                          <span className="text-xs capitalize text-gray-600">{existingPrediction.oneWeekDirection}</span>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                        <div className="text-sm text-gray-500 mb-1">1 Month Prediction</div>
+                        <div className="font-semibold text-lg">
+                          {existingPrediction.oneMonthPrice ? formatCurrency(parseFloat(existingPrediction.oneMonthPrice)) : "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">
+                          {existingPrediction.oneMonthConfidence || "N/A"}% confidence
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          {existingPrediction.oneMonthDirection === "up" && <TrendingUp className="w-3 h-3 text-green-600" />}
+                          {existingPrediction.oneMonthDirection === "down" && <TrendingDown className="w-3 h-3 text-red-600" />}
+                          {existingPrediction.oneMonthDirection === "sideways" && <Minus className="w-3 h-3 text-gray-600" />}
+                          <span className="text-xs capitalize text-gray-600">{existingPrediction.oneMonthDirection}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                    <div className="text-sm text-gray-500 mb-1">1 Week Prediction</div>
-                    <div className="font-semibold text-lg">
-                      {existingPrediction.oneWeekPrice ? formatCurrency(parseFloat(existingPrediction.oneWeekPrice)) : "N/A"}
+
+                    {/* Show technical analysis if available */}
+                    {existingPrediction.trend && (
+                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                        <div className="text-sm font-medium mb-2">Technical Analysis</div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Trend: </span>
+                            <span className={`font-medium ${getTrendColor(existingPrediction.trend)}`}>
+                              {existingPrediction.trend}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Recommendation: </span>
+                            <span className="font-medium">{existingPrediction.recommendation || "Hold"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Show generated prediction if no existing prediction */}
+                {!existingPrediction && displayPrediction && (
+                  <>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Brain className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800">Fresh Analysis Generated</span>
+                      </div>
+                      <p className="text-sm text-blue-700">
+                        New prediction generated using latest market data and AI analysis.
+                      </p>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      {existingPrediction.oneWeekConfidence || "N/A"}% confidence
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {displayPrediction.predictions.map((pred, index) => (
+                        <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                          <div className="text-sm text-gray-500 mb-1">{pred.timeframe} Prediction</div>
+                          <div className="font-semibold text-lg">
+                            {formatCurrency(pred.predictedPrice)}
+                          </div>
+                          <div className="text-sm text-gray-600 mb-2">
+                            {pred.confidence}% confidence
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            {pred.direction === "up" && <TrendingUp className="w-3 h-3 text-green-600" />}
+                            {pred.direction === "down" && <TrendingDown className="w-3 h-3 text-red-600" />}
+                            {pred.direction === "sideways" && <Minus className="w-3 h-3 text-gray-600" />}
+                            <span className="text-xs capitalize text-gray-600">{pred.direction}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-2">
+                            Range: {formatCurrency(pred.confidenceInterval.low)} - {formatCurrency(pred.confidenceInterval.high)}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                    <div className="text-sm text-gray-500 mb-1">1 Month Prediction</div>
-                    <div className="font-semibold text-lg">
-                      {existingPrediction.oneMonthPrice ? formatCurrency(parseFloat(existingPrediction.oneMonthPrice)) : "N/A"}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {existingPrediction.oneMonthConfidence || "N/A"}% confidence
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="text-xs text-gray-500 text-center">
-                  Generated on {existingPrediction.predictionDate ? new Date(existingPrediction.predictionDate).toLocaleDateString() : "Unknown date"}
-                </div>
+
+                    {displayPrediction.technicalAnalysis && (
+                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                        <div className="text-sm font-medium mb-2">Technical Analysis</div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Trend: </span>
+                            <span className={`font-medium ${getTrendColor(displayPrediction.technicalAnalysis.trend)}`}>
+                              {displayPrediction.technicalAnalysis.trend}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">RSI: </span>
+                            <span className="font-medium">{displayPrediction.technicalAnalysis.rsi}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Support: </span>
+                            <span className="font-medium">{formatCurrency(displayPrediction.technicalAnalysis.support)}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Resistance: </span>
+                            <span className="font-medium">{formatCurrency(displayPrediction.technicalAnalysis.resistance)}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <span className="text-gray-600">Recommendation: </span>
+                          <span className="font-medium">{displayPrediction.technicalAnalysis.recommendation}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
