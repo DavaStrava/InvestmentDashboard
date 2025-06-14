@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import EnhancedAccuracyDashboard from "@/components/enhanced-accuracy-dashboard";
+import { PredictionTable } from "@/components/prediction-table";
 import {
   Table,
   TableBody,
