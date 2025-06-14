@@ -52,11 +52,11 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
   // Check if prediction already exists for today
   const { data: todayCheck, isLoading: checkingToday, refetch: refetchTodayCheck } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction/today"],
-    staleTime: 0, // Always fresh to catch newly stored predictions
-    gcTime: 0, // Don't cache this query
+    staleTime: 5 * 60 * 1000, // 5 minutes cache to reduce API calls
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Always refetch when component mounts
-    refetchInterval: false, // Disable automatic refetching
+    refetchOnMount: true,
+    refetchInterval: false,
   });
 
   const [forceGenerate, setForceGenerate] = useState(false);
@@ -394,10 +394,34 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
       <CardContent>
         {(isLoading || checkingToday) ? (
           <div className="space-y-4">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-8 w-1/2" />
-            <Skeleton className="h-20 w-full" />
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-sm font-medium text-blue-800">
+                  {checkingToday ? "Checking for existing predictions..." : "Generating AI prediction..."}
+                </span>
+              </div>
+              {isLoading && (
+                <div className="space-y-2 text-xs text-blue-700">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <span>Fetching current market data</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-100"></div>
+                    <span>Analyzing historical price patterns</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-200"></div>
+                    <span>Computing technical indicators</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-300"></div>
+                    <span>Generating AI-powered predictions</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : shouldShowPrediction ? (
           <div className="space-y-4">
