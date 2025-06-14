@@ -598,6 +598,7 @@ export default function PredictionDashboard() {
                   <TableRow>
                     <TableHead>Symbol</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>Time</TableHead>
                     <TableHead>Starting Price</TableHead>
                     <TableHead>Predicted Price</TableHead>
                     <TableHead>Actual Price</TableHead>
@@ -609,7 +610,7 @@ export default function PredictionDashboard() {
                 <TableBody>
                   {filteredPredictions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={9} className="text-center py-8">
                         <div className="flex flex-col items-center space-y-2">
                           <Brain className="w-8 h-8 text-gray-400" />
                           <p className="text-gray-500">
@@ -623,6 +624,15 @@ export default function PredictionDashboard() {
                       <TableRow key={prediction.id}>
                         <TableCell className="font-medium">{prediction.symbol}</TableCell>
                         <TableCell>{formatDate(prediction.predictionDate)}</TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {new Date(prediction.predictionDate).toLocaleTimeString('en-US', {
+                            timeZone: 'America/Los_Angeles',
+                            hour12: false,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                          })}
+                        </TableCell>
                         <TableCell className="font-medium">
                           {formatCurrency(prediction.currentPrice)}
                         </TableCell>
