@@ -1,0 +1,190 @@
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font: bold 18px Arial; fill: #2563eb; }
+      .layer-title { font: bold 14px Arial; fill: #1f2937; }
+      .component { font: 12px Arial; fill: #374151; }
+      .small-text { font: 10px Arial; fill: #6b7280; }
+      .box { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 2; }
+      .client-box { fill: #dbeafe; stroke: #3b82f6; stroke-width: 2; }
+      .server-box { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; }
+      .db-box { fill: #fef3c7; stroke: #f59e0b; stroke-width: 2; }
+      .external-box { fill: #fee2e2; stroke: #ef4444; stroke-width: 2; }
+      .arrow { stroke: #6b7280; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .data-flow { stroke: #3b82f6; stroke-width: 2; fill: none; marker-end: url(#arrowhead); stroke-dasharray: 5,5; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" class="title">Portfolio Tracker - AI-Powered Stock Prediction Platform</text>
+
+  <!-- Client Layer -->
+  <rect x="50" y="80" width="1100" height="180" class="client-box" rx="10"/>
+  <text x="70" y="100" class="layer-title">Frontend Layer (React + TypeScript)</text>
+  
+  <!-- Client Components -->
+  <rect x="80" y="120" width="160" height="120" class="box" rx="5"/>
+  <text x="160" y="140" text-anchor="middle" class="component">Portfolio Management</text>
+  <text x="90" y="160" class="small-text">• Holdings CRUD</text>
+  <text x="90" y="175" class="small-text">• Watchlist</text>
+  <text x="90" y="190" class="small-text">• Performance Analytics</text>
+  <text x="90" y="205" class="small-text">• CSV Import</text>
+  <text x="90" y="220" class="small-text">• Real-time Updates</text>
+
+  <rect x="260" y="120" width="160" height="120" class="box" rx="5"/>
+  <text x="340" y="140" text-anchor="middle" class="component">AI Prediction Dashboard</text>
+  <text x="270" y="160" class="small-text">• 3 Collapsible Tables</text>
+  <text x="270" y="175" class="small-text">• 1-day/1-week/1-month</text>
+  <text x="270" y="190" class="small-text">• Accuracy Metrics</text>
+  <text x="270" y="205" class="small-text">• PST Timestamps</text>
+  <text x="270" y="220" class="small-text">• Performance Analysis</text>
+
+  <rect x="440" y="120" width="160" height="120" class="box" rx="5"/>
+  <text x="520" y="140" text-anchor="middle" class="component">Stock Detail Views</text>
+  <text x="450" y="160" class="small-text">• Real-time Quotes</text>
+  <text x="450" y="175" class="small-text">• Technical Analysis</text>
+  <text x="450" y="190" class="small-text">• AI Predictions</text>
+  <text x="450" y="205" class="small-text">• Detailed Narratives</text>
+  <text x="450" y="220" class="small-text">• Market Data</text>
+
+  <rect x="620" y="120" width="160" height="120" class="box" rx="5"/>
+  <text x="700" y="140" text-anchor="middle" class="component">Shared Components</text>
+  <text x="630" y="160" class="small-text">• UI Library (shadcn)</text>
+  <text x="630" y="175" class="small-text">• Charts (Recharts)</text>
+  <text x="630" y="190" class="small-text">• Forms (React Hook Form)</text>
+  <text x="630" y="205" class="small-text">• State (TanStack Query)</text>
+  <text x="630" y="220" class="small-text">• Routing (Wouter)</text>
+
+  <rect x="800" y="120" width="160" height="120" class="box" rx="5"/>
+  <text x="880" y="140" text-anchor="middle" class="component">Data Visualization</text>
+  <text x="810" y="160" class="small-text">• Market Indices</text>
+  <text x="810" y="175" class="small-text">• Performance Charts</text>
+  <text x="810" y="190" class="small-text">• Accuracy Metrics</text>
+  <text x="810" y="205" class="small-text">• Trend Analysis</text>
+  <text x="810" y="220" class="small-text">• Risk Assessment</text>
+
+  <rect x="980" y="120" width="160" height="120" class="box" rx="5"/>
+  <text x="1060" y="140" text-anchor="middle" class="component">Cache & Storage</text>
+  <text x="990" y="160" class="small-text">• TanStack Query Cache</text>
+  <text x="990" y="175" class="small-text">• Local Storage</text>
+  <text x="990" y="190" class="small-text">• Session Management</text>
+  <text x="990" y="205" class="small-text">• Optimistic Updates</text>
+  <text x="990" y="220" class="small-text">• Background Sync</text>
+
+  <!-- Server Layer -->
+  <rect x="50" y="300" width="1100" height="200" class="server-box" rx="10"/>
+  <text x="70" y="320" class="layer-title">Backend Layer (Express + TypeScript)</text>
+
+  <!-- Server Components -->
+  <rect x="80" y="340" width="180" height="140" class="box" rx="5"/>
+  <text x="170" y="360" text-anchor="middle" class="component">API Routes & Controllers</text>
+  <text x="90" y="380" class="small-text">• REST API Endpoints</text>
+  <text x="90" y="395" class="small-text">• Request Validation (Zod)</text>
+  <text x="90" y="410" class="small-text">• Error Handling</text>
+  <text x="90" y="425" class="small-text">• Rate Limiting</text>
+  <text x="90" y="440" class="small-text">• CORS Configuration</text>
+  <text x="90" y="455" class="small-text">• Session Management</text>
+
+  <rect x="280" y="340" width="180" height="140" class="box" rx="5"/>
+  <text x="370" y="360" text-anchor="middle" class="component">AI Prediction Engine</text>
+  <text x="290" y="380" class="small-text">• OpenAI GPT-4o Integration</text>
+  <text x="290" y="395" class="small-text">• Technical Analysis</text>
+  <text x="290" y="410" class="small-text">• Multi-timeframe Predictions</text>
+  <text x="290" y="425" class="small-text">• Confidence Scoring</text>
+  <text x="290" y="440" class="small-text">• Narrative Generation</text>
+  <text x="290" y="455" class="small-text">• Risk Assessment</text>
+
+  <rect x="480" y="340" width="180" height="140" class="box" rx="5"/>
+  <text x="570" y="360" text-anchor="middle" class="component">Market Data Processing</text>
+  <text x="490" y="380" class="small-text">• FMP API Integration</text>
+  <text x="490" y="395" class="small-text">• Real-time Quote Fetching</text>
+  <text x="490" y="410" class="small-text">• Historical Data Analysis</text>
+  <text x="490" y="425" class="small-text">• Market Index Tracking</text>
+  <text x="490" y="440" class="small-text">• Data Transformation</text>
+  <text x="490" y="455" class="small-text">• Caching Strategy</text>
+
+  <rect x="680" y="340" width="180" height="140" class="box" rx="5"/>
+  <text x="770" y="360" text-anchor="middle" class="component">Prediction Evaluator</text>
+  <text x="690" y="380" class="small-text">• Market-Aware Timing</text>
+  <text x="690" y="395" class="small-text">• US Eastern Time Logic</text>
+  <text x="690" y="410" class="small-text">• Accuracy Assessment</text>
+  <text x="690" y="425" class="small-text">• Performance Tracking</text>
+  <text x="690" y="440" class="small-text">• Automated Evaluation</text>
+  <text x="690" y="455" class="small-text">• Confidence Weighting</text>
+
+  <rect x="880" y="340" width="180" height="140" class="box" rx="5"/>
+  <text x="970" y="360" text-anchor="middle" class="component">Database Layer</text>
+  <text x="890" y="380" class="small-text">• Drizzle ORM</text>
+  <text x="890" y="395" class="small-text">• Type-safe Queries</text>
+  <text x="890" y="410" class="small-text">• Migration Management</text>
+  <text x="890" y="425" class="small-text">• Connection Pooling</text>
+  <text x="890" y="440" class="small-text">• Query Optimization</text>
+  <text x="890" y="455" class="small-text">• Transaction Support</text>
+
+  <!-- Database Layer -->
+  <rect x="50" y="540" width="500" height="120" class="db-box" rx="10"/>
+  <text x="70" y="560" class="layer-title">Database Layer (PostgreSQL)</text>
+
+  <rect x="80" y="580" width="140" height="60" class="box" rx="5"/>
+  <text x="150" y="600" text-anchor="middle" class="component">Core Tables</text>
+  <text x="90" y="620" class="small-text">• holdings</text>
+  <text x="90" y="635" class="small-text">• watchlist</text>
+
+  <rect x="240" y="580" width="140" height="60" class="box" rx="5"/>
+  <text x="310" y="600" text-anchor="middle" class="component">Predictions</text>
+  <text x="250" y="620" class="small-text">• predictions table</text>
+  <text x="250" y="635" class="small-text">• accuracy metrics</text>
+
+  <rect x="400" y="580" width="140" height="60" class="box" rx="5"/>
+  <text x="470" y="600" text-anchor="middle" class="component">Analytics</text>
+  <text x="410" y="620" class="small-text">• performance data</text>
+  <text x="410" y="635" class="small-text">• evaluation results</text>
+
+  <!-- External Services -->
+  <rect x="600" y="540" width="550" height="120" class="external-box" rx="10"/>
+  <text x="620" y="560" class="layer-title">External Services</text>
+
+  <rect x="630" y="580" width="140" height="60" class="box" rx="5"/>
+  <text x="700" y="600" text-anchor="middle" class="component">Financial Modeling Prep</text>
+  <text x="640" y="620" class="small-text">• Real-time quotes</text>
+  <text x="640" y="635" class="small-text">• Historical data</text>
+
+  <rect x="790" y="580" width="140" height="60" class="box" rx="5"/>
+  <text x="860" y="600" text-anchor="middle" class="component">OpenAI API</text>
+  <text x="800" y="620" class="small-text">• GPT-4o model</text>
+  <text x="800" y="635" class="small-text">• AI predictions</text>
+
+  <rect x="950" y="580" width="140" height="60" class="box" rx="5"/>
+  <text x="1020" y="600" text-anchor="middle" class="component">Replit Infrastructure</text>
+  <text x="960" y="620" class="small-text">• Hosting platform</text>
+  <text x="960" y="635" class="small-text">• Environment</text>
+
+  <!-- Data Flow Arrows -->
+  <line x1="160" y1="260" x2="170" y2="340" class="data-flow"/>
+  <line x1="340" y1="260" x2="370" y2="340" class="data-flow"/>
+  <line x1="520" y1="260" x2="570" y2="340" class="data-flow"/>
+  <line x1="700" y1="260" x2="770" y2="340" class="data-flow"/>
+  <line x1="880" y1="260" x2="970" y2="340" class="data-flow"/>
+
+  <line x1="150" y1="480" x2="150" y2="580" class="data-flow"/>
+  <line x1="310" y1="480" x2="310" y2="580" class="data-flow"/>
+  <line x1="470" y1="480" x2="470" y2="580" class="data-flow"/>
+
+  <line x1="570" y1="440" x2="700" y2="580" class="data-flow"/>
+  <line x1="370" y1="440" x2="860" y2="580" class="data-flow"/>
+
+  <!-- Performance Metrics -->
+  <rect x="50" y="700" width="1100" height="80" class="box" rx="10"/>
+  <text x="70" y="720" class="layer-title">Performance Characteristics</text>
+  <text x="70" y="740" class="small-text">• AI Prediction Loading: &lt;2 seconds (optimized from 7+ seconds)</text>
+  <text x="70" y="755" class="small-text">• Database Queries: SQL WHERE clauses for filtering vs memory-based filtering</text>
+  <text x="70" y="770" class="small-text">• Cache Strategy: TanStack Query with 30-second stale time, fresh data synchronization</text>
+
+  <text x="600" y="740" class="small-text">• Market Evaluation: US Eastern Time aware, automated after-hours processing</text>
+  <text x="600" y="755" class="small-text">• Accuracy Tracking: Price threshold 0.1%, direction evaluation, confidence weighting</text>
+  <text x="600" y="770" class="small-text">• Real-time Updates: WebSocket-like behavior via query invalidation</text>
+
+</svg>
