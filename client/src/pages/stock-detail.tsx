@@ -30,12 +30,23 @@ export default function StockDetailPage() {
   });
 
   // Check for existing prediction
-  const { data: todayCheck } = useQuery({
+  const { data: todayCheck, refetch: refetchTodayCheck } = useQuery({
     queryKey: ["/api/stocks", symbol, "prediction/today"],
     enabled: !!symbol,
+    staleTime: 1 * 60 * 1000, // 1 minute cache
+    refetchOnMount: true,
   });
 
   const existingPrediction = (todayCheck as any)?.prediction;
+  
+  // Debug logging for prediction data
+  console.log(`[STOCK_DETAIL] ${symbol}: Prediction data:`, {
+    hasTodayCheck: !!todayCheck,
+    hasExistingPrediction: !!existingPrediction,
+    predictionKeys: existingPrediction ? Object.keys(existingPrediction) : [],
+    oneDayReasoning: existingPrediction?.oneDayReasoning,
+    technicalAnalysisNarrative: existingPrediction?.technicalAnalysisNarrative
+  });
 
   if (!symbol) {
     return (
