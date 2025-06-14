@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, decimal, timestamp, boolean, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, decimal, timestamp, boolean, varchar, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -74,7 +74,24 @@ export const predictions = pgTable("predictions", {
   // Metadata
   generatedAt: timestamp("generated_at").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // Index for symbol-based queries (most frequent)
+  symbolIdx: index("predictions_symbol_idx").on(table.symbol),
+  
+  // Index for date-based queries and sorting
+  predictionDateIdx: index("predictions_date_idx").on(table.predictionDate),
+  
+  // Composite index for symbol + date queries
+  symbolDateIdx: index("predictions_symbol_date_idx").on(table.symbol, table.predictionDate),
+  
+  // Index for accuracy queries
+  oneDayAccurateIdx: index("predictions_1d_accurate_idx").on(table.oneDayAccurate),
+  oneWeekAccurateIdx: index("predictions_1w_accurate_idx").on(table.oneWeekAccurate),
+  oneMonthAccurateIdx: index("predictions_1m_accurate_idx").on(table.oneMonthAccurate),
+  
+  // Index for evaluation timing
+  lastEvaluatedIdx: index("predictions_last_evaluated_idx").on(table.lastEvaluatedAt),
+}));
 
 export const insertHoldingSchema = createInsertSchema(holdings).omit({
   id: true,
