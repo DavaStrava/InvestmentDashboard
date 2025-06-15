@@ -130,7 +130,7 @@ export default function CSVUploadModal({ onClose }: CSVUploadModalProps) {
           <Alert>
             <FileText className="h-4 w-4" />
             <AlertDescription>
-              Upload a CSV file with your portfolio holdings. Required columns: symbol, companyName, shares, avgCostPerShare
+              Upload a CSV file with your portfolio holdings. Required columns: symbol, companyName, shares, avgCostPerShare (or Unit Cost)
             </AlertDescription>
           </Alert>
 

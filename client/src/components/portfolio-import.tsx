@@ -252,8 +252,9 @@ export function PortfolioImport() {
           )}
 
           <div className="text-xs text-gray-500 space-y-1">
-            <p><strong>CSV Format:</strong> symbol, companyName, shares, avgCostPerShare, purchaseDate</p>
+            <p><strong>CSV Format:</strong> symbol, companyName, shares, avgCostPerShare (or Unit Cost), purchaseDate</p>
             <p><strong>Example:</strong> AAPL, Apple Inc., 10, 150.00, 2024-01-15</p>
+            <p><strong>Supported Cost Columns:</strong> avgCostPerShare, Unit Cost, price, cost, averageCost</p>
             <p><strong>Note:</strong> Date format should be YYYY-MM-DD</p>
           </div>
         </CardContent>
