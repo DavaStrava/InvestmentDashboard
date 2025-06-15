@@ -72,6 +72,9 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
 
   const hasTodaysPrediction = (todayCheck as any)?.hasPrediction || !!manualExistingPrediction;
   const existingPrediction = (todayCheck as any)?.prediction || manualExistingPrediction;
+  const isWeekend = (todayCheck as any)?.isWeekend;
+  const mostRecentPrediction = (todayCheck as any)?.mostRecentPrediction;
+  const marketStatus = (todayCheck as any)?.marketStatus;
 
   console.log(`[PREDICTION_STATE] ${symbol}:`, {
     checkingToday,
@@ -98,6 +101,15 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
         console.log(`[PREDICTION_GENERATION] ${symbol}: Server prevented duplicate prediction`);
         throw new Error("DUPLICATE_PREDICTION");
       }
+
+      if (response.status === 400) {
+        // Market is closed - don't treat as error, handle gracefully
+        const errorData = await response.json();
+        if (errorData.marketClosed) {
+          console.log(`[PREDICTION_GENERATION] ${symbol}: Market closed - ${errorData.reason}`);
+          throw new Error("MARKET_CLOSED");
+        }
+      }
       
       if (!response.ok) {
         throw new Error("Failed to fetch prediction");
@@ -108,10 +120,10 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     },
     refetchOnWindowFocus: false,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours - predictions are valid for a day
-    enabled: (!hasTodaysPrediction && !checkingToday && !hasStoredToday && !manualExistingPrediction) || forceGenerate, // Only generate if no existing prediction OR forced
+    enabled: (!hasTodaysPrediction && !checkingToday && !hasStoredToday && !manualExistingPrediction && !isWeekend) || forceGenerate, // Only generate if no existing prediction, not weekend, OR forced
     retry: (failureCount, error) => {
-      // Don't retry duplicate prediction errors
-      if (error.message === "DUPLICATE_PREDICTION") {
+      // Don't retry duplicate prediction or market closed errors
+      if (error.message === "DUPLICATE_PREDICTION" || error.message === "MARKET_CLOSED") {
         return false;
       }
       return failureCount < 3;

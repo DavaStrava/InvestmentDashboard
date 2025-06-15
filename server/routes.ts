@@ -781,6 +781,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const symbol = req.params.symbol.toUpperCase();
       console.log(`[PREDICTION_TODAY_CHECK] Starting check for ${symbol}`);
       
+      const { canGeneratePredictions, shouldShowRecentEvaluation, logMarketStatus } = await import('./market-schedule');
+      
+      // Log current market status
+      const marketStatus = logMarketStatus();
+      
+      // Check if we can generate predictions today (trading day)
+      if (!canGeneratePredictions()) {
+        console.log(`[PREDICTION_TODAY_CHECK] ${symbol} - Market closed, fetching most recent prediction`);
+        
+        // Get most recent prediction instead of today's
+        const predictions = await storage.getPredictions(symbol);
+        const mostRecent = predictions.length > 0 ? predictions[0] : null;
+        
+        if (mostRecent) {
+          console.log(`[PREDICTION_TODAY_CHECK] ${symbol} - Found recent prediction from ${mostRecent.predictionDate}`);
+          res.json({ 
+            hasPrediction: false,
+            isWeekend: true,
+            mostRecentPrediction: mostRecent,
+            marketStatus,
+            message: "Market is closed. Showing most recent prediction."
+          });
+        } else {
+          console.log(`[PREDICTION_TODAY_CHECK] ${symbol} - No recent predictions available`);
+          res.json({ 
+            hasPrediction: false,
+            isWeekend: true,
+            marketStatus,
+            message: "Market is closed. No recent predictions available."
+          });
+        }
+        return;
+      }
+      
+      // Normal trading day logic
       const hasPrediction = await storage.hasTodaysPrediction(symbol);
       console.log(`[PREDICTION_TODAY_CHECK] ${symbol} hasPrediction result: ${hasPrediction}`);
       
@@ -791,10 +826,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           predictionDate: prediction?.predictionDate,
           hasData: !!prediction
         });
-        res.json({ hasPrediction: true, prediction });
+        res.json({ hasPrediction: true, prediction, marketStatus });
       } else {
         console.log(`[PREDICTION_TODAY_CHECK] ${symbol} no existing prediction found`);
-        res.json({ hasPrediction: false, prediction: null });
+        res.json({ hasPrediction: false, prediction: null, marketStatus });
       }
     } catch (error) {
       console.error(`[PREDICTION_TODAY_CHECK] Error:`, error);
@@ -808,6 +843,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       console.log(`[PREDICTION_GENERATION] Starting generation for ${symbol}`);
+      
+      const { canGeneratePredictions, logMarketStatus } = await import('./market-schedule');
+      
+      // Check if market is open for predictions
+      if (!canGeneratePredictions()) {
+        const marketStatus = logMarketStatus();
+        console.log(`[PREDICTION_GENERATION] ${symbol} - Cannot generate predictions: ${marketStatus.reason}`);
+        return res.status(400).json({ 
+          message: "Cannot generate predictions when market is closed",
+          marketClosed: true,
+          reason: marketStatus.reason
+        });
+      }
       
       // Check if prediction already exists for today BEFORE generating
       const hasTodaysPrediction = await storage.hasTodaysPrediction(symbol);
