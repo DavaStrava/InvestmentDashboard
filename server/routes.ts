@@ -255,14 +255,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quote caching system with extended duration
+  // Enhanced quote caching system with persistence
   const quoteCache = new Map<string, { quote: any; timestamp: number }>();
-  const CACHE_DURATION = 300000; // 5 minutes cache during rate limiting
+  const CACHE_DURATION = 3600000; // 1 hour cache for rate-limited scenarios
+  const FRESH_CACHE_DURATION = 60000; // 1 minute for normal operation
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   
-  // Track API health
+  // Track API health and quota management
   let consecutiveErrors = 0;
   let lastSuccessfulCall = Date.now();
+  let dailyCallCount = 0;
+  let isRateLimited = false;
   
   function getCachedQuote(symbol: string): any | null {
     const cached = quoteCache.get(symbol);
