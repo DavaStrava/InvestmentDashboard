@@ -255,39 +255,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rate limiting utility for portfolio calculations
+  // Quote caching system with extended duration
+  const quoteCache = new Map<string, { quote: any; timestamp: number }>();
+  const CACHE_DURATION = 300000; // 5 minutes cache during rate limiting
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   
-  async function fetchQuotesWithRateLimit(symbols: string[]): Promise<Map<string, any>> {
+  // Track API health
+  let consecutiveErrors = 0;
+  let lastSuccessfulCall = Date.now();
+  
+  function getCachedQuote(symbol: string): any | null {
+    const cached = quoteCache.get(symbol);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.quote;
+    }
+    return null;
+  }
+  
+  function setCachedQuote(symbol: string, quote: any): void {
+    quoteCache.set(symbol, { quote, timestamp: Date.now() });
+  }
+  
+  async function fetchQuotesWithCaching(symbols: string[]): Promise<Map<string, any>> {
     const quotes = new Map();
-    const batchSize = 8; // Process 8 stocks at a time to stay under rate limits
-    const delayMs = 250; // 250ms delay between batches
+    const symbolsToFetch: string[] = [];
     
-    for (let i = 0; i < symbols.length; i += batchSize) {
-      const batch = symbols.slice(i, i + batchSize);
-      const batchPromises = batch.map(async symbol => {
-        try {
-          const quote = await fetchStockQuote(symbol);
-          return { symbol, quote };
-        } catch (error) {
-          console.error(`Failed to fetch quote for ${symbol}:`, error);
-          return { symbol, quote: null };
-        }
-      });
+    // First, check cache for existing quotes
+    symbols.forEach(symbol => {
+      const cached = getCachedQuote(symbol);
+      if (cached) {
+        quotes.set(symbol, cached);
+      } else {
+        symbolsToFetch.push(symbol);
+      }
+    });
+    
+    if (symbolsToFetch.length === 0) {
+      console.log(`All ${symbols.length} quotes served from cache`);
+      return quotes;
+    }
+    
+    // If we've had too many consecutive errors recently, skip fetching
+    const timeSinceLastSuccess = Date.now() - lastSuccessfulCall;
+    if (consecutiveErrors > 10 && timeSinceLastSuccess < 60000) { // Wait 1 minute after many errors
+      console.log(`Skipping API calls due to rate limiting. ${quotes.size} quotes from cache only.`);
+      return quotes;
+    }
+    
+    console.log(`Fetching ${symbolsToFetch.length}/${symbols.length} new quotes (${quotes.size} from cache)`);
+    
+    // Very conservative rate limiting
+    let successCount = 0;
+    let errorCount = 0;
+    const maxAttempts = Math.min(symbolsToFetch.length, 5); // Limit to 5 new calls per request
+    
+    for (let i = 0; i < maxAttempts; i++) {
+      const symbol = symbolsToFetch[i];
       
-      const batchResults = await Promise.all(batchPromises);
-      batchResults.forEach(({ symbol, quote }) => {
+      try {
+        const quote = await fetchStockQuote(symbol);
         if (quote) {
           quotes.set(symbol, quote);
+          setCachedQuote(symbol, quote);
+          successCount++;
+          consecutiveErrors = 0; // Reset error count on success
+          lastSuccessfulCall = Date.now();
+        } else {
+          errorCount++;
+          consecutiveErrors++;
         }
-      });
+      } catch (error) {
+        errorCount++;
+        consecutiveErrors++;
+        
+        // Stop early if hitting rate limits
+        if (errorCount >= 3) {
+          console.log(`Stopping early due to API errors. Rate limited.`);
+          break;
+        }
+      }
       
-      // Add delay between batches to avoid rate limiting
-      if (i + batchSize < symbols.length) {
-        await delay(delayMs);
+      // Delay between each request
+      if (i < maxAttempts - 1) {
+        await delay(1000); // 1 second between requests
       }
     }
     
+    console.log(`Quote fetch: ${successCount} new, ${errorCount} errors, ${quotes.size} total available`);
     return quotes;
   }
 
@@ -309,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const symbols = holdings.map(h => h.symbol);
-      const quotes = await fetchQuotesWithRateLimit(symbols);
+      const quotes = await fetchQuotesWithCaching(symbols);
       
       let totalValue = 0;
       let totalCost = 0;
@@ -369,7 +423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const symbols = holdings.map(h => h.symbol);
-      const quotes = await fetchQuotesWithRateLimit(symbols);
+      const quotes = await fetchQuotesWithCaching(symbols);
       const holdingsWithQuotes: HoldingWithQuote[] = [];
 
       for (const holding of holdings) {
