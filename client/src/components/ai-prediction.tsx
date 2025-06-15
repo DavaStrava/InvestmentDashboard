@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +80,9 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     checkingToday,
     hasTodaysPrediction,
     hasExistingPrediction: !!existingPrediction,
+    isWeekend,
+    mostRecentPrediction: !!mostRecentPrediction,
+    marketStatus,
     todayCheckData: todayCheck
   });
 
