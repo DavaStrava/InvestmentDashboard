@@ -443,12 +443,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          // Validate and convert data types
-          const sharesNum = parseFloat(shares);
-          const costNum = parseFloat(avgCostPerShare);
+          // Clean and validate numeric values (remove currency symbols, commas, etc.)
+          const cleanShares = shares.toString().replace(/[$,\s]/g, '');
+          const cleanCost = avgCostPerShare.toString().replace(/[$,\s]/g, '');
+          
+          const sharesNum = parseFloat(cleanShares);
+          const costNum = parseFloat(cleanCost);
 
           if (isNaN(sharesNum) || isNaN(costNum) || sharesNum <= 0 || costNum <= 0) {
-            errors.push(`Row ${index + 1}: Invalid numeric values for shares or cost`);
+            errors.push(`Row ${index + 1}: Invalid numeric values for shares (${shares}) or cost (${avgCostPerShare})`);
             continue;
           }
 
