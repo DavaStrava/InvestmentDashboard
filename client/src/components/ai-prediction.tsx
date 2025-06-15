@@ -369,6 +369,98 @@ export default function AIPrediction({ symbol }: AIPredictionProps) {
     }
   };
 
+  // Show weekend/market closed message with recent prediction
+  if (isWeekend && mostRecentPrediction) {
+    return (
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="w-5 h-5 text-orange-600" />
+              <CardTitle>Recent AI Prediction - Market Closed</CardTitle>
+            </div>
+            <Badge variant="secondary">
+              {marketStatus?.reason || 'Weekend'}
+            </Badge>
+          </div>
+          <CardDescription>
+            {(todayCheck as any)?.message || 'Market is closed. Showing most recent prediction.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="text-sm text-gray-500">
+              Prediction from: {new Date(mostRecentPrediction.predictionDate).toLocaleDateString()}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900">1-Day Prediction</h4>
+                <p className="text-2xl font-bold text-blue-600">
+                  ${parseFloat(mostRecentPrediction.oneDayPrice).toFixed(2)}
+                </p>
+                <p className="text-sm text-blue-700">
+                  {mostRecentPrediction.oneDayDirection} • {mostRecentPrediction.oneDayConfidence}% confidence
+                </p>
+              </div>
+
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-900">1-Week Prediction</h4>
+                <p className="text-2xl font-bold text-green-600">
+                  ${parseFloat(mostRecentPrediction.oneWeekPrice).toFixed(2)}
+                </p>
+                <p className="text-sm text-green-700">
+                  {mostRecentPrediction.oneWeekDirection} • {mostRecentPrediction.oneWeekConfidence}% confidence
+                </p>
+              </div>
+
+              <div className="p-4 bg-purple-50 rounded-lg">
+                <h4 className="font-medium text-purple-900">1-Month Prediction</h4>
+                <p className="text-2xl font-bold text-purple-600">
+                  ${parseFloat(mostRecentPrediction.oneMonthPrice).toFixed(2)}
+                </p>
+                <p className="text-sm text-purple-700">
+                  {mostRecentPrediction.oneMonthDirection} • {mostRecentPrediction.oneMonthConfidence}% confidence
+                </p>
+              </div>
+            </div>
+
+            {mostRecentPrediction.technicalAnalysisNarrative && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-gray-900 mb-2">Technical Analysis</h4>
+                <p className="text-sm text-gray-700">{mostRecentPrediction.technicalAnalysisNarrative}</p>
+              </div>
+            )}
+
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-500">
+                New predictions will be available when markets reopen on the next trading day.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show weekend message when no recent predictions available
+  if (isWeekend && !mostRecentPrediction) {
+    return (
+      <Card className="mt-6">
+        <CardContent className="p-6 text-center">
+          <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Market Closed</h3>
+          <p className="text-gray-600">
+            {(todayCheck as any)?.message || 'AI predictions are only available during trading days (Monday-Friday).'}
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            No recent predictions available for {symbol}.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (error && !isDuplicateError && !existingPrediction) {
     return (
       <Card>
