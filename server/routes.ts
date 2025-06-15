@@ -413,7 +413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Expected CSV format: symbol, companyName, shares, avgCostPerShare
-      // Alternative headers: Symbol, Company, Quantity, Price, Cost, Average Cost
+      // Alternative headers: Symbol, Company, Quantity, Price, Cost, Average Cost, Unit Cost
       const processedHoldings: any[] = [];
       const errors: string[] = [];
       let successCount = 0;
@@ -432,7 +432,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const symbol = normalizedRow.symbol || normalizedRow.ticker || normalizedRow.stock;
           const companyName = normalizedRow.companyname || normalizedRow.company || normalizedRow.name || symbol;
           const shares = normalizedRow.shares || normalizedRow.quantity || normalizedRow.qty;
+          
+          // Priority order: avgCostPerShare, then Unit Cost, then other alternatives
           const avgCostPerShare = normalizedRow.avgcostpershare || normalizedRow.averagecost || 
+                                normalizedRow.unitcost || normalizedRow['unit cost'] ||
                                 normalizedRow.price || normalizedRow.cost || normalizedRow.avgcost;
 
           if (!symbol || !shares || !avgCostPerShare) {
