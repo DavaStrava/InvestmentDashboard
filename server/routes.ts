@@ -790,7 +790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!canGeneratePredictions()) {
         console.log(`[PREDICTION_TODAY_CHECK] ${symbol} - Market closed, fetching most recent prediction`);
         
-        // Get most recent prediction instead of today's
+        // Always get most recent prediction when market is closed, regardless of today's prediction
         const predictions = await storage.getPredictions(symbol);
         const mostRecent = predictions.length > 0 ? predictions[0] : null;
         
@@ -801,7 +801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isWeekend: true,
             mostRecentPrediction: mostRecent,
             marketStatus,
-            message: "Market is closed. Showing most recent prediction."
+            message: `Market is closed (${marketStatus.reason}). Showing most recent prediction.`
           });
         } else {
           console.log(`[PREDICTION_TODAY_CHECK] ${symbol} - No recent predictions available`);
@@ -809,7 +809,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             hasPrediction: false,
             isWeekend: true,
             marketStatus,
-            message: "Market is closed. No recent predictions available."
+            message: `Market is closed (${marketStatus.reason}). No recent predictions available.`
           });
         }
         return;
