@@ -255,7 +255,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Portfolio summary endpoint
+  // Rate limiting utility for portfolio calculations
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  
+  async function fetchQuotesWithRateLimit(symbols: string[]): Promise<Map<string, any>> {
+    const quotes = new Map();
+    const batchSize = 8; // Process 8 stocks at a time to stay under rate limits
+    const delayMs = 250; // 250ms delay between batches
+    
+    for (let i = 0; i < symbols.length; i += batchSize) {
+      const batch = symbols.slice(i, i + batchSize);
+      const batchPromises = batch.map(async symbol => {
+        try {
+          const quote = await fetchStockQuote(symbol);
+          return { symbol, quote };
+        } catch (error) {
+          console.error(`Failed to fetch quote for ${symbol}:`, error);
+          return { symbol, quote: null };
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(({ symbol, quote }) => {
+        if (quote) {
+          quotes.set(symbol, quote);
+        }
+      });
+      
+      // Add delay between batches to avoid rate limiting
+      if (i + batchSize < symbols.length) {
+        await delay(delayMs);
+      }
+    }
+    
+    return quotes;
+  }
+
+  // Portfolio summary endpoint with optimized rate limiting
   app.get("/api/portfolio/summary", async (req, res) => {
     try {
       const holdings = await storage.getHoldings();
@@ -272,22 +308,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(summary);
       }
 
+      const symbols = holdings.map(h => h.symbol);
+      const quotes = await fetchQuotesWithRateLimit(symbols);
+      
       let totalValue = 0;
       let totalCost = 0;
       let dailyChange = 0;
+      let quotesFound = 0;
 
       for (const holding of holdings) {
-        const quote = await fetchStockQuote(holding.symbol);
+        const quote = quotes.get(holding.symbol);
+        const shares = parseFloat(holding.shares);
+        const costBasis = parseFloat(holding.avgCostPerShare);
+        const positionCost = costBasis * shares;
+        
         if (quote) {
-          const shares = parseFloat(holding.shares);
-          const costBasis = parseFloat(holding.avgCostPerShare);
           const positionValue = quote.price * shares;
-          const positionCost = costBasis * shares;
           const positionDailyChange = quote.change * shares;
 
           totalValue += positionValue;
           totalCost += positionCost;
           dailyChange += positionDailyChange;
+          quotesFound++;
+        } else {
+          // For positions without quotes, use cost basis as current value
+          totalValue += positionCost;
+          totalCost += positionCost;
+          // No daily change if no quote available
         }
       }
 
@@ -304,20 +351,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         holdingsCount: holdings.length,
       };
 
+      console.log(`Portfolio: ${quotesFound}/${holdings.length} live quotes, Total: $${totalValue.toFixed(2)}`);
       res.json(summary);
     } catch (error) {
+      console.error('Portfolio summary error:', error);
       res.status(500).json({ message: "Failed to fetch portfolio summary" });
     }
   });
 
-  // Holdings endpoints
+  // Holdings endpoints with rate limiting
   app.get("/api/holdings", async (req, res) => {
     try {
       const holdings = await storage.getHoldings();
+      
+      if (holdings.length === 0) {
+        return res.json([]);
+      }
+
+      const symbols = holdings.map(h => h.symbol);
+      const quotes = await fetchQuotesWithRateLimit(symbols);
       const holdingsWithQuotes: HoldingWithQuote[] = [];
 
       for (const holding of holdings) {
-        const quote = await fetchStockQuote(holding.symbol);
+        const quote = quotes.get(holding.symbol);
         if (quote) {
           const shares = parseFloat(holding.shares);
           const costBasis = parseFloat(holding.avgCostPerShare);
@@ -337,11 +393,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalGainLoss,
             totalGainLossPercent,
           });
+        } else {
+          // Include holdings without quotes but with no current pricing
+          const shares = parseFloat(holding.shares);
+          const costBasis = parseFloat(holding.avgCostPerShare);
+          const totalCost = costBasis * shares;
+
+          holdingsWithQuotes.push({
+            ...holding,
+            currentPrice: 0,
+            dailyChange: 0,
+            dailyChangePercent: 0,
+            totalValue: totalCost, // Use cost basis as fallback
+            totalGainLoss: 0,
+            totalGainLossPercent: 0,
+          });
         }
       }
 
+      console.log(`Holdings: ${quotes.size}/${holdings.length} live quotes fetched`);
       res.json(holdingsWithQuotes);
     } catch (error) {
+      console.error('Holdings fetch error:', error);
       res.status(500).json({ message: "Failed to fetch holdings" });
     }
   });
