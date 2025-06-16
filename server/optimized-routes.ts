@@ -40,8 +40,8 @@ class OptimizedPortfolioService {
   private holdingsCache: Map<string, OptimizedHolding> = new Map();
   private summaryCache: OptimizedPortfolioSummary | null = null;
   private lastCacheUpdate: number = 0;
-  private readonly CACHE_DURATION = 300000; // 5 minutes
-  private readonly MAX_LIVE_QUOTES = 5; // Extreme API conservation
+  private readonly CACHE_DURATION = 60000; // 1 minute for after-hours testing
+  private readonly MAX_LIVE_QUOTES = 15; // Include more holdings for after-hours pricing
 
   /**
    * Get all holdings with optimized data sourcing
@@ -196,7 +196,9 @@ class OptimizedPortfolioService {
       // Otherwise use cost basis (already set above)
     }
 
-    const currentValue = currentPrice * shares;
+    // Use after-hours price for portfolio value calculation if available
+    const effectivePrice = afterHoursPrice || currentPrice;
+    const currentValue = effectivePrice * shares;
     const totalGainLoss = currentValue - positionCost;
     const totalGainLossPercent = positionCost > 0 ? (totalGainLoss / positionCost) * 100 : 0;
 
