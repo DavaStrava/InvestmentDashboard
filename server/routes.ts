@@ -107,12 +107,7 @@ async function fetchStockQuote(symbol: string): Promise<StockQuote | null> {
     logger.error('QUOTE_ERROR', `API failed for ${symbol}`, error);
   }
   
-  // Try cached quote
-  const cachedQuote = getCachedQuote(symbol);
-  if (cachedQuote) {
-    logger.info('QUOTE_CACHE', `Using cached quote for ${symbol}`);
-    return cachedQuote;
-  }
+  // Cache functionality removed - using database fallback instead
   
   // Fall back to historical price from database
   try {

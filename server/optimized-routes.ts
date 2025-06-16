@@ -9,6 +9,7 @@ interface OptimizedHolding {
   shares: string;
   avgCostPerShare: string;
   currentPrice: number;
+  afterHoursPrice?: number | null;
   dailyChange: number;
   dailyChangePercent: number;
   totalValue: number;
@@ -173,12 +174,15 @@ class OptimizedPortfolioService {
     let dailyChangePercent = 0;
     let dataSource: 'live_api' | 'database_eod' | 'cost_basis' = 'cost_basis';
 
+    let afterHoursPrice = null;
+
     // Priority 1: Live API data (for top positions only)
     if (liveQuotes.has(holding.symbol)) {
       const quote = liveQuotes.get(holding.symbol);
       currentPrice = quote.price;
       dailyChange = quote.change * shares;
       dailyChangePercent = quote.changePercent || 0;
+      afterHoursPrice = quote.afterHoursPrice || null;
       dataSource = 'live_api';
     } else {
       // Priority 2: Database EOD prices (most holdings use this)
@@ -199,6 +203,7 @@ class OptimizedPortfolioService {
     return {
       ...holding,
       currentPrice,
+      afterHoursPrice,
       dailyChange,
       dailyChangePercent,
       totalValue: currentValue,
