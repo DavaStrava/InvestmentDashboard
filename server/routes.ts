@@ -79,7 +79,48 @@ async function fetchStockQuoteFromFMP(symbol: string): Promise<StockQuote | null
 // Main quote function using FMP as primary source
 async function fetchStockQuote(symbol: string): Promise<StockQuote | null> {
   console.log(`[FMP] Fetching quote for ${symbol}`);
-  return await fetchStockQuoteFromFMP(symbol);
+  
+  try {
+    // First try to get from API
+    const quote = await fetchStockQuoteFromFMP(symbol);
+    if (quote) {
+      return quote;
+    }
+  } catch (error) {
+    logger.error('QUOTE_ERROR', `API failed for ${symbol}`, error);
+  }
+  
+  // Try cached quote
+  const cachedQuote = getCachedQuote(symbol);
+  if (cachedQuote) {
+    logger.info('QUOTE_CACHE', `Using cached quote for ${symbol}`);
+    return cachedQuote;
+  }
+  
+  // Fall back to historical price from database
+  try {
+    const historicalPrice = await storage.getLatestHistoricalPrice(symbol);
+    if (historicalPrice) {
+      const historicalQuote: StockQuote = {
+        symbol,
+        companyName: symbol, // We don't have company name in historical data
+        price: parseFloat(historicalPrice.closePrice),
+        change: parseFloat(historicalPrice.change || "0"),
+        changePercent: parseFloat(historicalPrice.changePercent || "0"),
+        volume: historicalPrice.volume || 0,
+        marketCap: 0,
+        peRatio: 0,
+      };
+      
+      logger.info('HISTORICAL_PRICE', `Using historical price for ${symbol}: $${historicalQuote.price}`);
+      return historicalQuote;
+    }
+  } catch (error) {
+    logger.error('HISTORICAL_PRICE', `Failed to fetch historical price for ${symbol}`, error);
+  }
+  
+  logger.warn('QUOTE_FALLBACK', `No price data available for ${symbol}`);
+  return null;
 }
 
 // FMP stock search implementation

@@ -86,15 +86,13 @@ async function verifyRecording() {
   }
 }
 
-// Run the recording
-if (require.main === module) {
-  recordCurrentPrices()
-    .then(result => {
-      console.log("Price recording completed:", result);
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error("Price recording failed:", error);
-      process.exit(1);
-    });
-}
+// Run the recording immediately
+recordCurrentPrices()
+  .then(result => {
+    console.log("Price recording completed:", result);
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error("Price recording failed:", error);
+    process.exit(1);
+  });
