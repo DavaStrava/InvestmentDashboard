@@ -21,8 +21,8 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
   const queryClient = useQueryClient();
 
   const { data: holdings, isLoading } = useQuery({
-    queryKey: ["/api/holdings"],
-    refetchInterval: 30000,
+    queryKey: ["/api/holdings/optimized"],
+    refetchInterval: 300000, // 5 minutes - much longer due to intelligent caching
   });
 
   // Type guard to ensure holdings is an array

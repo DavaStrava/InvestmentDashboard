@@ -6,8 +6,8 @@ import { TrendingUp, ArrowUp, ChartLine, Briefcase } from "lucide-react";
 
 export default function PortfolioSummary() {
   const { data: summary, isLoading } = useQuery({
-    queryKey: ["/api/portfolio/summary"],
-    refetchInterval: 30000,
+    queryKey: ["/api/portfolio/summary/optimized"],
+    refetchInterval: 300000, // 5 minutes - optimized caching reduces API load
   });
 
   if (isLoading) {
