@@ -8,6 +8,7 @@ import multer from "multer";
 import csv from "csv-parser";
 import { Readable } from "stream";
 import { predictionEvaluator } from "./prediction-evaluator";
+import { marketPriceService } from "./market-price-service";
 
 // FMP API Configuration
 const FMP_API_KEY = process.env.FMP_API_KEY;
@@ -889,6 +890,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Check daily prediction error:", error);
       res.status(500).json({ message: "Failed to check existing prediction" });
+    }
+  });
+
+  // Historical prices management endpoints
+  app.post("/api/market/record-prices", async (req, res) => {
+    try {
+      logger.info("MARKET_PRICE", "Manual price recording triggered");
+      
+      // Use the existing fetchStockQuote function as the API fetcher
+      await marketPriceService.recordEndOfMarketPrices(fetchStockQuote);
+      
+      res.json({ 
+        success: true, 
+        message: "End-of-market prices recorded successfully" 
+      });
+    } catch (error) {
+      logger.error("MARKET_PRICE", "Manual price recording failed", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to record prices", 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
+  app.get("/api/market/recording-status", async (req, res) => {
+    try {
+      const status = marketPriceService.getRecordingStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get recording status" });
+    }
+  });
+
+  app.get("/api/market/historical-price/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { date } = req.query as { date?: string };
+      
+      if (date) {
+        const targetDate = new Date(date);
+        const price = await storage.getHistoricalPrice(symbol.toUpperCase(), targetDate);
+        res.json(price || null);
+      } else {
+        const latestPrice = await storage.getLatestHistoricalPrice(symbol.toUpperCase());
+        res.json(latestPrice || null);
+      }
+    } catch (error) {
+      logger.error("HISTORICAL_PRICE", "Failed to fetch historical price", error);
+      res.status(500).json({ message: "Failed to fetch historical price" });
     }
   });
 
