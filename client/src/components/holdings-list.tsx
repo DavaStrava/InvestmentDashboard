@@ -222,8 +222,13 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
 
                     {/* Current Price */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {formatCurrency(holding.currentPrice || 0)}
+                      <div className="text-sm font-medium text-gray-900 flex items-center space-x-1">
+                        <span>{formatCurrency(holding.currentPrice || 0)}</span>
+                        {holding.afterHoursPrice && (
+                          <span className="text-xs text-gray-600 font-normal">
+                            ({formatCurrency(holding.afterHoursPrice)})
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-gray-500">
                         Cost: {formatCurrency(parseFloat(holding.avgCostPerShare))}

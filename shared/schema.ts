@@ -157,17 +157,18 @@ export const insertHistoricalPriceSchema = createInsertSchema(historicalPrices).
 export type InsertHistoricalPrice = z.infer<typeof insertHistoricalPriceSchema>;
 export type HistoricalPrice = typeof historicalPrices.$inferSelect;
 
-// API response types
+// Stock quote interface for API responses
 export interface StockQuote {
   symbol: string;
   companyName: string;
   price: number;
   change: number;
   changePercent: number;
-  volume: number;
+  afterHoursPrice?: number | null;
+  volume?: number;
   marketCap?: number;
   peRatio?: number;
-  earningsDate?: string;
+  earningsDate?: number;
   high52Week?: number;
   low52Week?: number;
   avgVolume?: number;
