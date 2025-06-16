@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatPercent, getChangeColor } from "@/lib/utils";
-import { ArrowUpDown, Trash2 } from "lucide-react";
+import { ArrowUpDown, Trash2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useState } from "react";
 
 interface HoldingsListProps {
@@ -15,6 +15,8 @@ interface HoldingsListProps {
 
 export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
   const [sortBy, setSortBy] = useState<string>("all");
+  const [sortField, setSortField] = useState<string>("symbol");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -40,8 +42,23 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
     deleteHoldingMutation.mutate(id);
   };
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getTrendIcon = (change: number) => {
+    if (change > 0) return <TrendingUp className="w-4 h-4 text-green-500" />;
+    if (change < 0) return <TrendingDown className="w-4 h-4 text-red-500" />;
+    return <Minus className="w-4 h-4 text-gray-400" />;
+  };
+
   const getStockInitials = (symbol: string) => {
-    return symbol.slice(0, 4).toUpperCase();
+    return symbol.slice(0, 2).toUpperCase();
   };
 
   const getStockColor = (symbol: string) => {
@@ -57,11 +74,49 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
     return colors[index];
   };
 
-  const filteredHoldings = holdings?.filter(holding => {
+  const filteredAndSortedHoldings = holdings?.filter((holding: any) => {
     if (sortBy === "gainers") return holding.dailyChange > 0;
     if (sortBy === "losers") return holding.dailyChange < 0;
     return true;
+  }).sort((a: any, b: any) => {
+    const getValue = (holding: any, field: string) => {
+      switch (field) {
+        case "symbol": return holding.symbol;
+        case "company": return holding.companyName;
+        case "shares": return parseFloat(holding.shares);
+        case "price": return holding.currentPrice || 0;
+        case "value": return holding.totalValue || 0;
+        case "dailyChange": return holding.dailyChange || 0;
+        case "totalGain": return holding.totalGainLoss || 0;
+        case "dailyPercent": return holding.dailyChangePercent || 0;
+        case "totalPercent": return holding.totalGainLossPercent || 0;
+        default: return 0;
+      }
+    };
+
+    const aVal = getValue(a, sortField);
+    const bVal = getValue(b, sortField);
+    
+    if (typeof aVal === "string" && typeof bVal === "string") {
+      return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+    
+    return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
   });
+
+  const SortableHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (
+    <th 
+      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center space-x-1">
+        <span>{children}</span>
+        {sortField === field && (
+          <ArrowUpDown className={`w-3 h-3 ${sortDirection === 'desc' ? 'rotate-180' : ''}`} />
+        )}
+      </div>
+    </th>
+  );
 
   if (isLoading) {
     return (
@@ -71,23 +126,16 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <Skeleton className="h-12 w-12 rounded-full" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-8 gap-4 p-4 border rounded-lg">
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-4" />
               </div>
             ))}
           </div>
@@ -100,10 +148,10 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>My Holdings</CardTitle>
+          <CardTitle>My Holdings ({holdings?.length || 0})</CardTitle>
           <div className="flex items-center space-x-2">
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-36">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -112,16 +160,13 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
                 <SelectItem value="losers">Losers</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="ghost" size="icon">
-              <ArrowUpDown className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent>
-        {!filteredHoldings || filteredHoldings.length === 0 ? (
-          <div className="text-center py-12">
+      <CardContent className="p-0">
+        {!filteredAndSortedHoldings || filteredAndSortedHoldings.length === 0 ? (
+          <div className="text-center py-12 px-6">
             <div className="text-gray-400 mb-4">
               <i className="fas fa-briefcase text-4xl"></i>
             </div>
@@ -131,58 +176,119 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
-            {filteredHoldings.map((holding) => (
-              <div
-                key={holding.id}
-                className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group"
-                onClick={() => onSelectStock(holding.symbol)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getStockColor(holding.symbol)}`}>
-                      <span className="font-bold text-sm">{getStockInitials(holding.symbol)}</span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{holding.companyName}</h3>
-                      <p className="text-sm text-gray-500">{parseFloat(holding.shares)} shares</p>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">{formatCurrency(holding.currentPrice)}</p>
-                    <p className={`text-sm ${getChangeColor(holding.dailyChange)}`}>
-                      {holding.dailyChange >= 0 ? "+" : ""}{formatCurrency(holding.dailyChange)} ({formatPercent(holding.dailyChangePercent)})
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">{formatCurrency(holding.totalValue)}</p>
-                    <p className={`text-sm ${getChangeColor(holding.totalGainLoss)}`}>
-                      {holding.totalGainLoss >= 0 ? "+" : ""}{formatCurrency(holding.totalGainLoss)} ({formatPercent(holding.totalGainLossPercent)})
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => handleDeleteHolding(holding.id, e)}
-                    disabled={deleteHoldingMutation.isPending}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <SortableHeader field="symbol">Stock</SortableHeader>
+                  <SortableHeader field="shares">Shares</SortableHeader>
+                  <SortableHeader field="price">Price</SortableHeader>
+                  <SortableHeader field="dailyChange">Day Change</SortableHeader>
+                  <SortableHeader field="value">Market Value</SortableHeader>
+                  <SortableHeader field="totalGain">Total P&L</SortableHeader>
+                  <SortableHeader field="totalPercent">Return</SortableHeader>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredAndSortedHoldings.map((holding: any) => (
+                  <tr
+                    key={holding.id}
+                    className="hover:bg-gray-50 cursor-pointer transition-colors group"
+                    onClick={() => onSelectStock(holding.symbol)}
                   >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+                    {/* Stock Info */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${getStockColor(holding.symbol)}`}>
+                          {getStockInitials(holding.symbol)}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{holding.symbol}</div>
+                          <div className="text-xs text-gray-500 truncate max-w-32">{holding.companyName}</div>
+                        </div>
+                      </div>
+                    </td>
 
-            {filteredHoldings.length > 3 && (
-              <div className="p-4 text-center">
-                <Button variant="ghost" className="text-primary hover:text-blue-700">
-                  View all holdings <i className="fas fa-arrow-right ml-1"></i>
-                </Button>
-              </div>
-            )}
+                    {/* Shares */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {parseFloat(holding.shares).toLocaleString()}
+                    </td>
+
+                    {/* Current Price */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {formatCurrency(holding.currentPrice || 0)}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Cost: {formatCurrency(parseFloat(holding.avgCostPerShare))}
+                      </div>
+                    </td>
+
+                    {/* Daily Change */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {getTrendIcon(holding.dailyChange || 0)}
+                        <div className="ml-2">
+                          <div className={`text-sm font-medium ${getChangeColor(holding.dailyChange || 0)}`}>
+                            {holding.dailyChange >= 0 ? "+" : ""}{formatCurrency(holding.dailyChange || 0)}
+                          </div>
+                          <div className={`text-xs ${getChangeColor(holding.dailyChangePercent || 0)}`}>
+                            {holding.dailyChangePercent >= 0 ? "+" : ""}{formatPercent(holding.dailyChangePercent || 0)}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Market Value */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {formatCurrency(holding.totalValue || 0)}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {((holding.totalValue || 0) / (holdings?.reduce((sum: number, h: any) => sum + (h.totalValue || 0), 0) || 1) * 100).toFixed(1)}% of portfolio
+                      </div>
+                    </td>
+
+                    {/* Total P&L */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-medium ${getChangeColor(holding.totalGainLoss || 0)}`}>
+                        {holding.totalGainLoss >= 0 ? "+" : ""}{formatCurrency(holding.totalGainLoss || 0)}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Since purchase
+                      </div>
+                    </td>
+
+                    {/* Return % */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        (holding.totalGainLossPercent || 0) >= 0 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {holding.totalGainLossPercent >= 0 ? "+" : ""}{formatPercent(holding.totalGainLossPercent || 0)}
+                      </div>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => handleDeleteHolding(holding.id, e)}
+                        disabled={deleteHoldingMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </CardContent>
