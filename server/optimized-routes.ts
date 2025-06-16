@@ -41,7 +41,7 @@ class OptimizedPortfolioService {
   private summaryCache: OptimizedPortfolioSummary | null = null;
   private lastCacheUpdate: number = 0;
   private readonly CACHE_DURATION = 10000; // 10 seconds for immediate refresh
-  private readonly MAX_LIVE_QUOTES = 25; // Maximum holdings for after-hours pricing accuracy
+  private readonly MAX_LIVE_QUOTES = 40; // Complete after-hours pricing for all holdings
 
   /**
    * Get all holdings with optimized data sourcing
