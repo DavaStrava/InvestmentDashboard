@@ -9,6 +9,7 @@ import csv from "csv-parser";
 import { Readable } from "stream";
 import { predictionEvaluator } from "./prediction-evaluator";
 import { marketPriceService } from "./market-price-service";
+import { registerOptimizedRoutes } from "./optimized-routes";
 
 // FMP API Configuration
 const FMP_API_KEY = process.env.FMP_API_KEY;

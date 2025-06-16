@@ -25,6 +25,9 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
     refetchInterval: 30000,
   });
 
+  // Type guard to ensure holdings is an array
+  const holdingsArray: any[] = Array.isArray(holdings) ? holdings : [];
+
   const deleteHoldingMutation = useMutation({
     mutationFn: portfolioApi.removeHolding,
     onSuccess: () => {
@@ -74,7 +77,7 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
     return colors[index];
   };
 
-  const filteredAndSortedHoldings = holdings?.filter((holding: any) => {
+  const filteredAndSortedHoldings = holdingsArray.filter((holding: any) => {
     if (sortBy === "gainers") return holding.dailyChange > 0;
     if (sortBy === "losers") return holding.dailyChange < 0;
     return true;
@@ -148,7 +151,7 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>My Holdings ({holdings?.length || 0})</CardTitle>
+          <CardTitle>My Holdings ({holdingsArray.length})</CardTitle>
           <div className="flex items-center space-x-2">
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-36">
@@ -248,7 +251,7 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
                         {formatCurrency(holding.totalValue || 0)}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {((holding.totalValue || 0) / (holdings?.reduce((sum: number, h: any) => sum + (h.totalValue || 0), 0) || 1) * 100).toFixed(1)}% of portfolio
+                        {((holding.totalValue || 0) / (holdingsArray.reduce((sum: number, h: any) => sum + (h.totalValue || 0), 0) || 1) * 100).toFixed(1)}% of portfolio
                       </div>
                     </td>
 
