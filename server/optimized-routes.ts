@@ -40,8 +40,8 @@ class OptimizedPortfolioService {
   private holdingsCache: Map<string, OptimizedHolding> = new Map();
   private summaryCache: OptimizedPortfolioSummary | null = null;
   private lastCacheUpdate: number = 0;
-  private readonly CACHE_DURATION = 60000; // 1 minute for after-hours testing
-  private readonly MAX_LIVE_QUOTES = 15; // Include more holdings for after-hours pricing
+  private readonly CACHE_DURATION = 10000; // 10 seconds for immediate refresh
+  private readonly MAX_LIVE_QUOTES = 25; // Maximum holdings for after-hours pricing accuracy
 
   /**
    * Get all holdings with optimized data sourcing
