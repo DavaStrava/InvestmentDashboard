@@ -1,5 +1,18 @@
-import { eq, and, gte, lt, sql } from "drizzle-orm";
-import { holdings, watchlist, predictions, type Holding, type InsertHolding, type WatchlistItem, type InsertWatchlistItem, type Prediction, type InsertPrediction } from "@shared/schema";
+import { eq, and, gte, lt, sql, desc } from "drizzle-orm";
+import { 
+  holdings, 
+  watchlist, 
+  predictions, 
+  historicalPrices,
+  type Holding, 
+  type InsertHolding, 
+  type WatchlistItem, 
+  type InsertWatchlistItem, 
+  type Prediction, 
+  type InsertPrediction,
+  type HistoricalPrice,
+  type InsertHistoricalPrice
+} from "@shared/schema";
 import { db } from "./db";
 
 export interface IStorage {
@@ -52,6 +65,14 @@ export interface IStorage {
     averageWeightedScore: number;
     totalPredictions: number;
   }>;
+
+  // Historical Prices
+  saveHistoricalPrice(price: InsertHistoricalPrice): Promise<HistoricalPrice>;
+  getHistoricalPrice(symbol: string, date: Date): Promise<HistoricalPrice | undefined>;
+  getLatestHistoricalPrice(symbol: string): Promise<HistoricalPrice | undefined>;
+  batchSaveHistoricalPrices(prices: InsertHistoricalPrice[]): Promise<void>;
+  getUniqueSymbolsFromHoldings(): Promise<string[]>;
+  getUniqueSymbolsFromWatchlist(): Promise<string[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -211,6 +232,31 @@ export class MemStorage implements IStorage {
       averageWeightedScore: 0,
       totalPredictions: 0,
     };
+  }
+
+  // Historical Prices - stub implementation for MemStorage
+  async saveHistoricalPrice(price: InsertHistoricalPrice): Promise<HistoricalPrice> {
+    throw new Error("Historical prices not supported in MemStorage");
+  }
+
+  async getHistoricalPrice(symbol: string, date: Date): Promise<HistoricalPrice | undefined> {
+    return undefined;
+  }
+
+  async getLatestHistoricalPrice(symbol: string): Promise<HistoricalPrice | undefined> {
+    return undefined;
+  }
+
+  async batchSaveHistoricalPrices(prices: InsertHistoricalPrice[]): Promise<void> {
+    // No-op for MemStorage
+  }
+
+  async getUniqueSymbolsFromHoldings(): Promise<string[]> {
+    return Array.from(new Set(Array.from(this.holdings.values()).map(h => h.symbol)));
+  }
+
+  async getUniqueSymbolsFromWatchlist(): Promise<string[]> {
+    return Array.from(new Set(Array.from(this.watchlist.values()).map(w => w.symbol)));
   }
 }
 
@@ -546,6 +592,98 @@ export class DatabaseStorage implements IStorage {
         averageWeightedScore: 0,
         totalPredictions: 0,
       };
+    }
+  }
+
+  // Historical Prices implementation
+  async saveHistoricalPrice(price: InsertHistoricalPrice): Promise<HistoricalPrice> {
+    try {
+      const [savedPrice] = await db
+        .insert(historicalPrices)
+        .values(price)
+        .onConflictDoUpdate({
+          target: [historicalPrices.symbol, historicalPrices.date],
+          set: {
+            closePrice: price.closePrice,
+            openPrice: price.openPrice,
+            highPrice: price.highPrice,
+            lowPrice: price.lowPrice,
+            volume: price.volume,
+            change: price.change,
+            changePercent: price.changePercent,
+          },
+        })
+        .returning();
+      return savedPrice;
+    } catch (error) {
+      console.error("Save historical price error:", error);
+      throw error;
+    }
+  }
+
+  async getHistoricalPrice(symbol: string, date: Date): Promise<HistoricalPrice | undefined> {
+    try {
+      const [price] = await db
+        .select()
+        .from(historicalPrices)
+        .where(and(
+          eq(historicalPrices.symbol, symbol),
+          eq(historicalPrices.date, date)
+        ));
+      return price;
+    } catch (error) {
+      console.error("Get historical price error:", error);
+      return undefined;
+    }
+  }
+
+  async getLatestHistoricalPrice(symbol: string): Promise<HistoricalPrice | undefined> {
+    try {
+      const [price] = await db
+        .select()
+        .from(historicalPrices)
+        .where(eq(historicalPrices.symbol, symbol))
+        .orderBy(desc(historicalPrices.date))
+        .limit(1);
+      return price;
+    } catch (error) {
+      console.error("Get latest historical price error:", error);
+      return undefined;
+    }
+  }
+
+  async batchSaveHistoricalPrices(prices: InsertHistoricalPrice[]): Promise<void> {
+    try {
+      if (prices.length === 0) return;
+      
+      await db.insert(historicalPrices).values(prices).onConflictDoNothing();
+    } catch (error) {
+      console.error("Batch save historical prices error:", error);
+      throw error;
+    }
+  }
+
+  async getUniqueSymbolsFromHoldings(): Promise<string[]> {
+    try {
+      const symbols = await db
+        .selectDistinct({ symbol: holdings.symbol })
+        .from(holdings);
+      return symbols.map(row => row.symbol);
+    } catch (error) {
+      console.error("Get unique symbols from holdings error:", error);
+      return [];
+    }
+  }
+
+  async getUniqueSymbolsFromWatchlist(): Promise<string[]> {
+    try {
+      const symbols = await db
+        .selectDistinct({ symbol: watchlist.symbol })
+        .from(watchlist);
+      return symbols.map(row => row.symbol);
+    } catch (error) {
+      console.error("Get unique symbols from watchlist error:", error);
+      return [];
     }
   }
 }

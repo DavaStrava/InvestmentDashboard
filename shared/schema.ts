@@ -122,6 +122,41 @@ export type WatchlistItem = typeof watchlist.$inferSelect;
 export type InsertPrediction = z.infer<typeof insertPredictionSchema>;
 export type Prediction = typeof predictions.$inferSelect;
 
+// Historical stock prices for market-close data storage
+export const historicalPrices = pgTable("historical_prices", {
+  id: serial("id").primaryKey(),
+  symbol: text("symbol").notNull(),
+  date: timestamp("date").notNull(), // Trading day date
+  closePrice: decimal("close_price", { precision: 10, scale: 4 }).notNull(),
+  openPrice: decimal("open_price", { precision: 10, scale: 4 }),
+  highPrice: decimal("high_price", { precision: 10, scale: 4 }),
+  lowPrice: decimal("low_price", { precision: 10, scale: 4 }),
+  volume: integer("volume"),
+  change: decimal("change", { precision: 10, scale: 4 }),
+  changePercent: decimal("change_percent", { precision: 8, scale: 4 }),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+}, (table) => ({
+  // Primary query index for symbol + date lookups
+  symbolDateIdx: index("historical_prices_symbol_date_idx").on(table.symbol, table.date),
+  
+  // Index for date-based queries
+  dateIdx: index("historical_prices_date_idx").on(table.date),
+  
+  // Index for symbol-based queries
+  symbolIdx: index("historical_prices_symbol_idx").on(table.symbol),
+  
+  // Unique constraint to prevent duplicate entries
+  uniqueSymbolDate: index("historical_prices_unique_symbol_date").on(table.symbol, table.date),
+}));
+
+export const insertHistoricalPriceSchema = createInsertSchema(historicalPrices).omit({
+  id: true,
+  recordedAt: true,
+});
+
+export type InsertHistoricalPrice = z.infer<typeof insertHistoricalPriceSchema>;
+export type HistoricalPrice = typeof historicalPrices.$inferSelect;
+
 // API response types
 export interface StockQuote {
   symbol: string;
