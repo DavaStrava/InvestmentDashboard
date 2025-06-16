@@ -54,12 +54,22 @@ async function fetchStockQuoteFromFMP(symbol: string): Promise<StockQuote | null
         return null;
       }
       
+      // Use after-hours price if available and market is closed
+      let currentPrice = validateNumeric(quoteData.price, `${symbol}.price`);
+      let afterHoursPrice = null;
+      
+      if (afterHoursData && afterHoursData.bid && afterHoursData.ask) {
+        afterHoursPrice = (afterHoursData.bid + afterHoursData.ask) / 2;
+        logger.info('AFTER_HOURS', `${symbol} after-hours: $${afterHoursPrice.toFixed(2)} (bid: ${afterHoursData.bid}, ask: ${afterHoursData.ask})`);
+      }
+      
       const stockQuote: StockQuote = {
         symbol: quoteData.symbol,
         companyName: profileData?.companyName || quoteData.name || symbol,
-        price: validateNumeric(quoteData.price, `${symbol}.price`),
+        price: currentPrice,
         change: validateNumeric(quoteData.change, `${symbol}.change`),
         changePercent: validateNumeric(quoteData.changesPercentage, `${symbol}.changePercent`),
+        afterHoursPrice: afterHoursPrice,
         volume: validateNumeric(quoteData.volume, `${symbol}.volume`),
         marketCap: profileData?.mktCap ? validateNumeric(profileData.mktCap, `${symbol}.marketCap`) : undefined,
         peRatio: metricsData?.peRatio ? validateNumeric(metricsData.peRatio, `${symbol}.peRatio`) : undefined,
