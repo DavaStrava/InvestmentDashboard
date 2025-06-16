@@ -26,16 +26,22 @@ async function fetchStockQuoteFromFMP(symbol: string): Promise<StockQuote | null
     try {
       logger.apiRequest('GET', `FMP quote/profile/metrics for ${symbol}`);
       
-      // Get real-time quote, company profile, and key metrics
-      const [quoteResponse, profileResponse, metricsResponse] = await Promise.all([
+      // Check if market is closed to fetch after-hours data
+      const { getMarketStatus } = await import('./market-schedule');
+      const marketStatus = getMarketStatus();
+      
+      // Get real-time quote, company profile, key metrics, and after-hours data
+      const [quoteResponse, profileResponse, metricsResponse, afterHoursResponse] = await Promise.all([
         fetch(`${FMP_BASE_URL}/v3/quote/${symbol}?apikey=${FMP_API_KEY}`),
         fetch(`${FMP_BASE_URL}/v3/profile/${symbol}?apikey=${FMP_API_KEY}`),
-        fetch(`${FMP_BASE_URL}/v3/key-metrics/${symbol}?period=annual&limit=1&apikey=${FMP_API_KEY}`)
+        fetch(`${FMP_BASE_URL}/v3/key-metrics/${symbol}?period=annual&limit=1&apikey=${FMP_API_KEY}`),
+        !marketStatus.isOpen ? fetch(`${FMP_BASE_URL}/v4/pre-post-market/${symbol}?apikey=${FMP_API_KEY}`) : Promise.resolve(null)
       ]);
       
       const [quoteData] = await quoteResponse.json();
       const [profileData] = await profileResponse.json();
       const [metricsData] = await metricsResponse.json();
+      const afterHoursData = afterHoursResponse ? await afterHoursResponse.json() : null;
       
       logger.apiResponse(`FMP-${symbol}`, quoteResponse.status, {
         hasQuote: !!quoteData,
