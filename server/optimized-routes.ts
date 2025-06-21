@@ -40,8 +40,8 @@ class OptimizedPortfolioService {
   private holdingsCache: Map<string, OptimizedHolding> = new Map();
   private summaryCache: OptimizedPortfolioSummary | null = null;
   private lastCacheUpdate: number = 0;
-  private readonly CACHE_DURATION = 10000; // 10 seconds for immediate refresh
-  private readonly MAX_LIVE_QUOTES = 40; // Complete after-hours pricing for all holdings
+  private readonly CACHE_DURATION = 300000; // 5 minutes for better performance
+  private readonly MAX_LIVE_QUOTES = 15; // Balanced performance and accuracy
 
   /**
    * Get all holdings with optimized data sourcing
@@ -89,14 +89,26 @@ class OptimizedPortfolioService {
     const prioritySymbols = this.selectPrioritySymbols(rawHoldings);
     const liveQuotes = await this.fetchMinimalLiveQuotes(prioritySymbols);
 
+    // Batch load all historical prices for non-priority symbols
+    const nonPrioritySymbols = rawHoldings
+      .filter(h => !prioritySymbols.includes(h.symbol))
+      .map(h => h.symbol);
+    
+    const historicalPrices = await storage.getBatchHistoricalPrices(nonPrioritySymbols);
+
     this.holdingsCache.clear();
     let liveCount = 0;
     let dbCount = 0;
     let fallbackCount = 0;
 
-    for (const holding of rawHoldings) {
-      const optimized = await this.processHolding(holding, liveQuotes);
-      this.holdingsCache.set(holding.symbol, optimized);
+    // Process holdings in parallel for better performance
+    const holdingPromises = rawHoldings.map(holding => 
+      this.processHoldingWithBatch(holding, liveQuotes, historicalPrices)
+    );
+    const optimizedHoldings = await Promise.all(holdingPromises);
+
+    optimizedHoldings.forEach((optimized, index) => {
+      this.holdingsCache.set(rawHoldings[index].symbol, optimized);
 
       // Track data source statistics
       switch (optimized.dataSource) {
@@ -104,7 +116,7 @@ class OptimizedPortfolioService {
         case 'database_eod': dbCount++; break;
         case 'cost_basis': fallbackCount++; break;
       }
-    }
+    });
 
     // Update market weights
     this.updateMarketWeights();

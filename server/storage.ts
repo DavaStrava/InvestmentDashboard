@@ -70,6 +70,7 @@ export interface IStorage {
   saveHistoricalPrice(price: InsertHistoricalPrice): Promise<HistoricalPrice>;
   getHistoricalPrice(symbol: string, date: Date): Promise<HistoricalPrice | undefined>;
   getLatestHistoricalPrice(symbol: string): Promise<HistoricalPrice | undefined>;
+  getBatchHistoricalPrices(symbols: string[]): Promise<Map<string, HistoricalPrice>>;
   batchSaveHistoricalPrices(prices: InsertHistoricalPrice[]): Promise<void>;
   getUniqueSymbolsFromHoldings(): Promise<string[]>;
   getUniqueSymbolsFromWatchlist(): Promise<string[]>;
