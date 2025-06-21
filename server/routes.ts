@@ -546,7 +546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/holdings", async (req, res) => {
+  app.post("/api/holdings", isAuthenticated, async (req, res) => {
     try {
       const result = insertHoldingSchema.safeParse(req.body);
       if (!result.success) {
@@ -560,7 +560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/holdings/:id", async (req, res) => {
+  app.patch("/api/holdings/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const result = insertHoldingSchema.partial().safeParse(req.body);
@@ -581,7 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/holdings/:id", async (req, res) => {
+  app.delete("/api/holdings/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteHolding(id);
@@ -597,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // CSV Portfolio Upload endpoint
-  app.post("/api/portfolio/upload", upload.single('csvFile'), async (req, res) => {
+  app.post("/api/portfolio/upload", isAuthenticated, upload.single('csvFile'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No CSV file uploaded" });
@@ -723,8 +723,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Watchlist endpoints
-  app.get("/api/watchlist", async (req, res) => {
+  // Watchlist endpoints - PROTECTED
+  app.get("/api/watchlist", isAuthenticated, async (req, res) => {
     try {
       logger.info('WATCHLIST_REQUEST', 'Fetching watchlist data');
       const watchlist = await storage.getWatchlist();
@@ -775,7 +775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/watchlist", async (req, res) => {
+  app.post("/api/watchlist", isAuthenticated, async (req, res) => {
     try {
       const result = insertWatchlistSchema.safeParse(req.body);
       if (!result.success) {
@@ -795,7 +795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/watchlist/:id", async (req, res) => {
+  app.delete("/api/watchlist/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteWatchlistItem(id);

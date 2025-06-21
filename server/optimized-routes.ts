@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { isAuthenticated } from "./replitAuth";
 import { storage } from "./storage";
 import { logger } from "./logger";
 
