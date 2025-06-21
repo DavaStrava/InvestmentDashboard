@@ -10,6 +10,7 @@ import { Readable } from "stream";
 import { predictionEvaluator } from "./prediction-evaluator";
 import { marketPriceService } from "./market-price-service";
 import { registerOptimizedRoutes } from "./optimized-routes";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 
 // FMP API Configuration
 const FMP_API_KEY = process.env.FMP_API_KEY;
@@ -275,7 +276,22 @@ async function parseCSVBuffer(buffer: Buffer): Promise<any[]> {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Stock quote endpoint
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Stock quote endpoint (public)
   app.get("/api/stocks/:symbol/quote", async (req, res) => {
     try {
       const { symbol } = req.params;
@@ -402,8 +418,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return quotes;
   }
 
-  // Portfolio summary endpoint with optimized rate limiting
-  app.get("/api/portfolio/summary", async (req, res) => {
+  // Portfolio summary endpoint - PROTECTED
+  app.get("/api/portfolio/summary", isAuthenticated, async (req, res) => {
     try {
       const holdings = await storage.getHoldings();
       
@@ -471,7 +487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Holdings endpoints with rate limiting
-  app.get("/api/holdings", async (req, res) => {
+  app.get("/api/holdings", isAuthenticated, async (req, res) => {
     try {
       const holdings = await storage.getHoldings();
       

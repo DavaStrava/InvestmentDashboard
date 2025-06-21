@@ -266,6 +266,15 @@ export class MemStorage implements IStorage {
   async getUniqueSymbolsFromWatchlist(): Promise<string[]> {
     return Array.from(new Set(Array.from(this.watchlist.values()).map(w => w.symbol)));
   }
+
+  // User operations for authentication (not used in memory storage but required for interface)
+  async getUser(id: string): Promise<User | undefined> {
+    return undefined;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    throw new Error("User operations not supported in memory storage");
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -693,6 +702,27 @@ export class DatabaseStorage implements IStorage {
       console.error("Get unique symbols from watchlist error:", error);
       return [];
     }
+  }
+
+  // User operations for authentication
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 }
 
