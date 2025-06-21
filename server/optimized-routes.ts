@@ -40,8 +40,8 @@ class OptimizedPortfolioService {
   private holdingsCache: Map<string, OptimizedHolding> = new Map();
   private summaryCache: OptimizedPortfolioSummary | null = null;
   private lastCacheUpdate: number = 0;
-  private readonly CACHE_DURATION = 300000; // 5 minutes for better performance
-  private readonly MAX_LIVE_QUOTES = 15; // Balanced performance and accuracy
+  private readonly CACHE_DURATION = 600000; // 10 minutes for optimal performance
+  private readonly MAX_LIVE_QUOTES = 10; // Conservative API usage with smart prioritization
 
   /**
    * Get all holdings with optimized data sourcing
@@ -89,22 +89,13 @@ class OptimizedPortfolioService {
     const prioritySymbols = this.selectPrioritySymbols(rawHoldings);
     const liveQuotes = await this.fetchMinimalLiveQuotes(prioritySymbols);
 
-    // Batch load all historical prices for non-priority symbols
-    const nonPrioritySymbols = rawHoldings
-      .filter(h => !prioritySymbols.includes(h.symbol))
-      .map(h => h.symbol);
-    
-    const historicalPrices = await storage.getBatchHistoricalPrices(nonPrioritySymbols);
-
     this.holdingsCache.clear();
     let liveCount = 0;
     let dbCount = 0;
     let fallbackCount = 0;
 
     // Process holdings in parallel for better performance
-    const holdingPromises = rawHoldings.map(holding => 
-      this.processHoldingWithBatch(holding, liveQuotes, historicalPrices)
-    );
+    const holdingPromises = rawHoldings.map(holding => this.processHolding(holding, liveQuotes));
     const optimizedHoldings = await Promise.all(holdingPromises);
 
     optimizedHoldings.forEach((optimized, index) => {
@@ -146,7 +137,7 @@ class OptimizedPortfolioService {
   }
 
   /**
-   * Fetch minimal live quotes with aggressive rate limiting
+   * Fetch minimal live quotes with intelligent throttling
    */
   private async fetchMinimalLiveQuotes(symbols: string[]): Promise<Map<string, any>> {
     const quotes = new Map();
@@ -155,19 +146,44 @@ class OptimizedPortfolioService {
 
     logger.info("LIVE_FETCH", `Fetching ${symbols.length} priority quotes`, { symbols });
 
-    // Use the existing FMP API with extreme caution
-    for (let i = 0; i < Math.min(symbols.length, this.MAX_LIVE_QUOTES); i++) {
-      const symbol = symbols[i];
-      try {
-        const quote = await this.fetchSingleQuote(symbol);
-        if (quote && quote.price > 0) {
-          quotes.set(symbol, quote);
-          await this.delay(1000); // 1 second between calls
-        }
-      } catch (error) {
-        logger.warn("QUOTE_ERROR", `Failed to fetch ${symbol}`, error);
-        break; // Stop on first error to preserve quota
+    // Batch fetch in chunks with exponential backoff on errors
+    const batchSize = 3;
+    let errorCount = 0;
+    const maxErrors = 2;
+
+    for (let i = 0; i < Math.min(symbols.length, this.MAX_LIVE_QUOTES); i += batchSize) {
+      if (errorCount >= maxErrors) {
+        logger.warn("THROTTLE_LIMIT", "Stopping due to error threshold", { errorCount });
+        break;
       }
+
+      const batch = symbols.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (symbol, index) => {
+        try {
+          // Stagger requests within batch to avoid rate limits
+          await this.delay(index * 400);
+          const quote = await this.fetchSingleQuote(symbol);
+          if (quote && quote.price > 0) {
+            return { symbol, quote };
+          }
+        } catch (error) {
+          errorCount++;
+          logger.warn("QUOTE_ERROR", `Failed to fetch ${symbol}`, error);
+          return null;
+        }
+        return null;
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(result => {
+        if (result) {
+          quotes.set(result.symbol, result.quote);
+        }
+      });
+
+      // Delay between batches with exponential backoff on errors
+      const batchDelay = errorCount > 0 ? 2000 * Math.pow(2, errorCount) : 1500;
+      await this.delay(batchDelay);
     }
 
     return quotes;
