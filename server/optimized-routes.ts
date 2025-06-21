@@ -335,8 +335,8 @@ export const optimizedPortfolioService = new OptimizedPortfolioService();
  * Register optimized portfolio routes
  */
 export function registerOptimizedRoutes(app: Express): void {
-  // Optimized holdings endpoint
-  app.get("/api/holdings/optimized", async (req, res) => {
+  // Optimized holdings endpoint - PROTECTED
+  app.get("/api/holdings/optimized", isAuthenticated, async (req, res) => {
     try {
       const holdings = await optimizedPortfolioService.getOptimizedHoldings();
       res.json(holdings);
@@ -346,8 +346,8 @@ export function registerOptimizedRoutes(app: Express): void {
     }
   });
 
-  // Optimized portfolio summary endpoint
-  app.get("/api/portfolio/summary/optimized", async (req, res) => {
+  // Optimized portfolio summary endpoint - PROTECTED
+  app.get("/api/portfolio/summary/optimized", isAuthenticated, async (req, res) => {
     try {
       const summary = await optimizedPortfolioService.getOptimizedSummary();
       res.json(summary);
