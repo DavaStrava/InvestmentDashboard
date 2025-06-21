@@ -4,6 +4,7 @@ import {
   watchlist, 
   predictions, 
   historicalPrices,
+  users,
   type Holding, 
   type InsertHolding, 
   type WatchlistItem, 
@@ -11,7 +12,9 @@ import {
   type Prediction, 
   type InsertPrediction,
   type HistoricalPrice,
-  type InsertHistoricalPrice
+  type InsertHistoricalPrice,
+  type User,
+  type UpsertUser
 } from "@shared/schema";
 import { db } from "./db";
 
@@ -74,6 +77,10 @@ export interface IStorage {
   batchSaveHistoricalPrices(prices: InsertHistoricalPrice[]): Promise<void>;
   getUniqueSymbolsFromHoldings(): Promise<string[]>;
   getUniqueSymbolsFromWatchlist(): Promise<string[]>;
+
+  // User operations for authentication
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
 }
 
 export class MemStorage implements IStorage {
