@@ -1,3 +1,30 @@
+/**
+ * AI-POWERED STOCK PREDICTION ENGINE
+ * =================================
+ * 
+ * This module leverages OpenAI's GPT-4 for sophisticated stock market analysis
+ * and prediction generation. It combines technical analysis with natural language
+ * processing to provide investment insights with confidence scoring.
+ * 
+ * Key Features:
+ * - Multi-timeframe analysis (1-day, 1-week, 1-month predictions)
+ * - Technical indicator integration (RSI, support/resistance levels)
+ * - Confidence scoring and uncertainty quantification
+ * - Natural language reasoning for each prediction
+ * - Market context awareness (trading hours, volatility, news sentiment)
+ * 
+ * AI Model Integration:
+ * - Uses GPT-4 for complex pattern recognition in financial data
+ * - Structured prompt engineering for consistent prediction format
+ * - Risk assessment and uncertainty acknowledgment
+ * - Combines quantitative data with qualitative market insights
+ * 
+ * Data Sources:
+ * - Real-time stock prices from Financial Modeling Prep API
+ * - Historical price data with multiple timeframes
+ * - Technical indicators and market metrics
+ * - Volume and volatility analysis
+ */
 import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -6,25 +33,25 @@ export interface StockPrediction {
   symbol: string;
   currentPrice: number;
   predictions: {
-    timeframe: string;
-    predictedPrice: number;
-    confidence: number;
-    direction: "up" | "down" | "sideways";
-    reasoning: string;
+    timeframe: string;               // "1-day", "1-week", "1-month"
+    predictedPrice: number;          // Target price prediction
+    confidence: number;              // Confidence level (0-100)
+    direction: "up" | "down" | "sideways"; // Market direction
+    reasoning: string;               // AI-generated explanation
     confidenceInterval: {
-      low: number;
-      high: number;
+      low: number;                   // Lower bound of prediction
+      high: number;                  // Upper bound of prediction
     };
   }[];
   technicalAnalysis: {
-    trend: "bullish" | "bearish" | "neutral";
-    support: number;
-    resistance: number;
-    rsi: string;
-    recommendation: string;
+    trend: "bullish" | "bearish" | "neutral"; // Overall trend assessment
+    support: number;                 // Support level identification
+    resistance: number;              // Resistance level identification
+    rsi: string;                     // RSI interpretation
+    recommendation: string;          // Buy/Hold/Sell recommendation
   };
-  generatedAt: string;
-  dataLimitations?: {
+  generatedAt: string;              // Prediction timestamp
+  dataLimitations?: {               // Transparency about data quality
     hasLimitedHistoricalData: boolean;
     isIntradayOnly: boolean;
     longerTermPredictionsUncertain: boolean;

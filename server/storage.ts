@@ -1,3 +1,23 @@
+/**
+ * DATA ACCESS LAYER (STORAGE SERVICE)
+ * ===================================
+ * 
+ * This service implements the Repository pattern to abstract database operations
+ * from business logic. It provides a clean interface for CRUD operations with
+ * proper multi-tenant data isolation and type safety.
+ * 
+ * Key Features:
+ * - Multi-tenant architecture with userId-based data isolation
+ * - Type-safe database operations using Drizzle ORM
+ * - Centralized query logic for consistency across the application
+ * - Optimized queries with proper indexing strategy
+ * - Error handling and validation at the data layer
+ * 
+ * Security Model:
+ * - All operations require userId parameter for data isolation
+ * - Foreign key constraints enforce referential integrity
+ * - No cross-tenant data access possible through this interface
+ */
 import { eq, and, gte, lt, sql, desc } from "drizzle-orm";
 import { 
   holdings, 

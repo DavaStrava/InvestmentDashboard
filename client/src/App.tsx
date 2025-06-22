@@ -1,3 +1,27 @@
+/**
+ * FRONTEND APPLICATION ROOT
+ * ========================
+ * 
+ * Main React application entry point implementing client-side routing,
+ * state management, and authentication-based navigation flow.
+ * 
+ * Architecture Features:
+ * - Client-side routing with Wouter (lightweight React Router alternative)
+ * - TanStack Query for server state management and caching
+ * - Authentication-based route protection and conditional rendering
+ * - Global UI providers for consistent theming and notifications
+ * 
+ * Route Structure:
+ * - Landing page: Unauthenticated users see marketing/login interface
+ * - Portfolio: Main dashboard with holdings, watchlist, and market data
+ * - Predictions: AI-powered stock analysis and prediction tracking
+ * - Stock Detail: Individual stock analysis with charts and metrics
+ * 
+ * State Management:
+ * - Authentication state via useAuth hook (React Query based)
+ * - Server state cached and synchronized via TanStack Query
+ * - UI state managed locally in components with React hooks
+ */
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";

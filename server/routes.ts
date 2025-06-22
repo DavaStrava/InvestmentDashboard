@@ -1,3 +1,26 @@
+/**
+ * API ROUTES LAYER (EXPRESS HANDLERS)
+ * ===================================
+ * 
+ * This module defines all HTTP endpoints for the investment portfolio platform.
+ * It follows RESTful conventions with proper authentication, validation, and
+ * error handling. All routes are protected by multi-tenant user isolation.
+ * 
+ * Architecture Pattern:
+ * - Thin controller layer - business logic delegated to services
+ * - Input validation using Zod schemas from shared types
+ * - Consistent error handling and logging throughout
+ * - Authentication middleware protecting all data operations
+ * - Rate limiting and API optimization for external data sources
+ * 
+ * Route Categories:
+ * 1. Authentication routes (/api/auth/*)
+ * 2. Portfolio management (/api/holdings/*, /api/portfolio/*)
+ * 3. Watchlist operations (/api/watchlist/*)
+ * 4. AI predictions (/api/predictions/*)
+ * 5. Market data (/api/market/*, /api/stock/*)
+ * 6. Data import/export (/api/import/*)
+ */
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";

@@ -1,37 +1,72 @@
+/**
+ * DATABASE SCHEMA DESIGN
+ * =====================
+ * 
+ * This file defines the complete database schema for the investment portfolio management platform.
+ * The schema follows PostgreSQL best practices with proper indexing, foreign key constraints,
+ * and data type precision for financial calculations.
+ * 
+ * Key Design Principles:
+ * 1. Multi-tenant architecture with user isolation via userId foreign keys
+ * 2. Decimal precision for all financial calculations (avoiding floating point errors)
+ * 3. Comprehensive indexing for query performance optimization
+ * 4. Separation of concerns between holdings, predictions, and market data
+ * 5. Historical price storage for offline/weekend portfolio valuations
+ */
 import { pgTable, text, serial, integer, decimal, timestamp, boolean, varchar, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table for authentication
+/**
+ * AUTHENTICATION SYSTEM TABLES
+ * ============================
+ * These tables support Replit OpenID Connect authentication with session management.
+ * The sessions table stores encrypted session data, while users table maintains
+ * user profile information synchronized from Replit's identity provider.
+ */
+
+// Session storage table - Required for Replit Auth integration
+// Stores encrypted session data with automatic expiration cleanup
 export const sessions = pgTable(
   "sessions",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
+    sid: varchar("sid").primaryKey(), // Session identifier (UUID)
+    sess: jsonb("sess").notNull(),    // Encrypted session payload including tokens
+    expire: timestamp("expire").notNull(), // Automatic session expiration
   },
-  (table) => [index("IDX_session_expire").on(table.expire)],
+  (table) => [
+    // Index for efficient session cleanup by expiration date
+    index("IDX_session_expire").on(table.expire)
+  ],
 );
 
-// User storage table for authentication
+// User profile table - Synchronized with Replit identity provider
+// Stores user information from OpenID Connect claims for local reference
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  id: varchar("id").primaryKey().notNull(),     // Replit user ID (stable identifier)
+  email: varchar("email").unique(),             // User email (may be null for some auth methods)
+  firstName: varchar("first_name"),            // Optional first name from profile
+  lastName: varchar("last_name"),              // Optional last name from profile
+  profileImageUrl: varchar("profile_image_url"), // Profile picture URL from Replit
+  createdAt: timestamp("created_at").defaultNow(), // First login timestamp
+  updatedAt: timestamp("updated_at").defaultNow(), // Last profile update
 });
 
+/**
+ * PORTFOLIO HOLDINGS TABLE
+ * =======================
+ * Core table storing user investment positions with precise decimal arithmetic
+ * for financial calculations. Each holding represents a stock position with
+ * cost basis tracking for gain/loss calculations.
+ */
 export const holdings = pgTable("holdings", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  symbol: text("symbol").notNull(),
-  companyName: text("company_name").notNull(),
-  shares: decimal("shares", { precision: 10, scale: 4 }).notNull(),
-  avgCostPerShare: decimal("avg_cost_per_share", { precision: 10, scale: 2 }).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id), // Multi-tenant isolation
+  symbol: text("symbol").notNull(),                                // Stock ticker (e.g., "AAPL")
+  companyName: text("company_name").notNull(),                     // Human-readable company name
+  shares: decimal("shares", { precision: 10, scale: 4 }).notNull(), // Position size (supports fractional shares)
+  avgCostPerShare: decimal("avg_cost_per_share", { precision: 10, scale: 2 }).notNull(), // Cost basis per share
+  createdAt: timestamp("created_at").defaultNow().notNull(),       // Position entry timestamp
 });
 
 export const watchlist = pgTable("watchlist", {
