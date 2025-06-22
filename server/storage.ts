@@ -20,42 +20,42 @@ import { db } from "./db";
 
 export interface IStorage {
   // Holdings
-  getHoldings(): Promise<Holding[]>;
-  getHolding(id: number): Promise<Holding | undefined>;
-  createHolding(holding: InsertHolding): Promise<Holding>;
-  updateHolding(id: number, updates: Partial<InsertHolding>): Promise<Holding | undefined>;
-  deleteHolding(id: number): Promise<boolean>;
+  getHoldings(userId: string): Promise<Holding[]>;
+  getHolding(id: number, userId: string): Promise<Holding | undefined>;
+  createHolding(holding: InsertHolding & { userId: string }): Promise<Holding>;
+  updateHolding(id: number, userId: string, updates: Partial<InsertHolding>): Promise<Holding | undefined>;
+  deleteHolding(id: number, userId: string): Promise<boolean>;
   
   // Watchlist
-  getWatchlist(): Promise<WatchlistItem[]>;
-  getWatchlistItem(id: number): Promise<WatchlistItem | undefined>;
-  createWatchlistItem(item: InsertWatchlistItem): Promise<WatchlistItem>;
-  deleteWatchlistItem(id: number): Promise<boolean>;
-  isSymbolInWatchlist(symbol: string): Promise<boolean>;
+  getWatchlist(userId: string): Promise<WatchlistItem[]>;
+  getWatchlistItem(id: number, userId: string): Promise<WatchlistItem | undefined>;
+  createWatchlistItem(item: InsertWatchlistItem & { userId: string }): Promise<WatchlistItem>;
+  deleteWatchlistItem(id: number, userId: string): Promise<boolean>;
+  isSymbolInWatchlist(symbol: string, userId: string): Promise<boolean>;
   
   // Predictions
-  createPrediction(prediction: InsertPrediction): Promise<Prediction>;
-  getPredictions(symbol?: string): Promise<Prediction[]>;
-  getPredictionById(id: number): Promise<Prediction | undefined>;
-  updatePredictionActuals(id: number, timeframe: '1d' | '1w' | '1m', actualPrice: number, accurate: boolean): Promise<Prediction | undefined>;
-  getPredictionAccuracy(symbol?: string): Promise<{ 
+  createPrediction(prediction: InsertPrediction & { userId: string }): Promise<Prediction>;
+  getPredictions(userId: string, symbol?: string): Promise<Prediction[]>;
+  getPredictionById(id: number, userId: string): Promise<Prediction | undefined>;
+  updatePredictionActuals(id: number, userId: string, timeframe: '1d' | '1w' | '1m', actualPrice: number, accurate: boolean): Promise<Prediction | undefined>;
+  getPredictionAccuracy(userId: string, symbol?: string): Promise<{ 
     oneDayAccuracy: number; 
     oneWeekAccuracy: number; 
     oneMonthAccuracy: number; 
     totalPredictions: number;
   }>;
-  hasTodaysPrediction(symbol: string): Promise<boolean>;
-  getTodaysPrediction(symbol: string): Promise<Prediction | undefined>;
-  deletePrediction(id: number): Promise<boolean>;
-  updatePredictionEvaluation(id: number, timeframe: '1d' | '1w' | '1m', evaluation: {
+  hasTodaysPrediction(symbol: string, userId: string): Promise<boolean>;
+  getTodaysPrediction(symbol: string, userId: string): Promise<Prediction | undefined>;
+  deletePrediction(id: number, userId: string): Promise<boolean>;
+  updatePredictionEvaluation(id: number, userId: string, timeframe: '1d' | '1w' | '1m', evaluation: {
     actualPrice: number;
     priceAccurate: boolean;
     directionAccurate: boolean;
     overallAccurate: boolean;
     weightedScore: number;
   }): Promise<Prediction | undefined>;
-  updatePredictionEvaluationTimestamp(id: number): Promise<void>;
-  getEnhancedPredictionAccuracy(symbol?: string): Promise<{
+  updatePredictionEvaluationTimestamp(id: number, userId: string): Promise<void>;
+  getEnhancedPredictionAccuracy(userId: string, symbol?: string): Promise<{
     oneDayAccuracy: number;
     oneWeekAccuracy: number; 
     oneMonthAccuracy: number;

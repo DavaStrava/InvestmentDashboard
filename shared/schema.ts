@@ -26,6 +26,7 @@ export const users = pgTable("users", {
 
 export const holdings = pgTable("holdings", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   symbol: text("symbol").notNull(),
   companyName: text("company_name").notNull(),
   shares: decimal("shares", { precision: 10, scale: 4 }).notNull(),
@@ -35,13 +36,15 @@ export const holdings = pgTable("holdings", {
 
 export const watchlist = pgTable("watchlist", {
   id: serial("id").primaryKey(),
-  symbol: text("symbol").notNull().unique(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  symbol: text("symbol").notNull(),
   companyName: text("company_name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const predictions = pgTable("predictions", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   symbol: text("symbol").notNull(),
   predictionDate: timestamp("prediction_date").defaultNow().notNull(),
   currentPrice: decimal("current_price", { precision: 10, scale: 2 }).notNull(),
