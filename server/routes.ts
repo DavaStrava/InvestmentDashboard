@@ -421,7 +421,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Portfolio summary endpoint - PROTECTED
   app.get("/api/portfolio/summary", isAuthenticated, async (req, res) => {
     try {
-      const holdings = await storage.getHoldings();
+      const userId = req.user?.claims?.sub;
+      const holdings = await storage.getHoldings(userId);
       
       if (holdings.length === 0) {
         const summary: PortfolioSummary = {

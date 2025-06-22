@@ -75,207 +75,15 @@ export interface IStorage {
   getLatestHistoricalPrice(symbol: string): Promise<HistoricalPrice | undefined>;
 
   batchSaveHistoricalPrices(prices: InsertHistoricalPrice[]): Promise<void>;
-  getUniqueSymbolsFromHoldings(): Promise<string[]>;
-  getUniqueSymbolsFromWatchlist(): Promise<string[]>;
+  getUniqueSymbolsFromHoldings(userId: string): Promise<string[]>;
+  getUniqueSymbolsFromWatchlist(userId: string): Promise<string[]>;
 
   // User operations for authentication
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
 }
 
-export class MemStorage implements IStorage {
-  private holdings: Map<number, Holding>;
-  private watchlist: Map<number, WatchlistItem>;
-  private currentHoldingId: number;
-  private currentWatchlistId: number;
-
-  constructor() {
-    this.holdings = new Map();
-    this.watchlist = new Map();
-    this.currentHoldingId = 1;
-    this.currentWatchlistId = 1;
-  }
-
-  // Holdings methods
-  async getHoldings(): Promise<Holding[]> {
-    return Array.from(this.holdings.values());
-  }
-
-  async getHolding(id: number): Promise<Holding | undefined> {
-    return this.holdings.get(id);
-  }
-
-  async createHolding(insertHolding: InsertHolding): Promise<Holding> {
-    const id = this.currentHoldingId++;
-    const holding: Holding = {
-      ...insertHolding,
-      id,
-      createdAt: new Date(),
-    };
-    this.holdings.set(id, holding);
-    return holding;
-  }
-
-  async updateHolding(id: number, updates: Partial<InsertHolding>): Promise<Holding | undefined> {
-    const holding = this.holdings.get(id);
-    if (!holding) return undefined;
-
-    const updatedHolding = { ...holding, ...updates };
-    this.holdings.set(id, updatedHolding);
-    return updatedHolding;
-  }
-
-  async deleteHolding(id: number): Promise<boolean> {
-    return this.holdings.delete(id);
-  }
-
-  // Watchlist methods
-  async getWatchlist(): Promise<WatchlistItem[]> {
-    return Array.from(this.watchlist.values());
-  }
-
-  async getWatchlistItem(id: number): Promise<WatchlistItem | undefined> {
-    return this.watchlist.get(id);
-  }
-
-  async createWatchlistItem(insertItem: InsertWatchlistItem): Promise<WatchlistItem> {
-    const id = this.currentWatchlistId++;
-    const item: WatchlistItem = {
-      ...insertItem,
-      id,
-      createdAt: new Date(),
-    };
-    this.watchlist.set(id, item);
-    return item;
-  }
-
-  async deleteWatchlistItem(id: number): Promise<boolean> {
-    return this.watchlist.delete(id);
-  }
-
-  async isSymbolInWatchlist(symbol: string): Promise<boolean> {
-    return Array.from(this.watchlist.values()).some(item => item.symbol === symbol);
-  }
-
-  // Predictions (stub implementation for MemStorage)
-  async createPrediction(insertPrediction: InsertPrediction): Promise<Prediction> {
-    throw new Error("Predictions not supported in MemStorage");
-  }
-
-  async getPredictions(symbol?: string): Promise<Prediction[]> {
-    return [];
-  }
-
-  async getPredictionById(id: number): Promise<Prediction | undefined> {
-    return undefined;
-  }
-
-  async updatePredictionActuals(id: number, timeframe: '1d' | '1w' | '1m', actualPrice: number, accurate: boolean): Promise<Prediction | undefined> {
-    return undefined;
-  }
-
-  async getPredictionAccuracy(symbol?: string): Promise<{ 
-    oneDayAccuracy: number; 
-    oneWeekAccuracy: number; 
-    oneMonthAccuracy: number; 
-    totalPredictions: number;
-  }> {
-    return {
-      oneDayAccuracy: 0,
-      oneWeekAccuracy: 0,
-      oneMonthAccuracy: 0,
-      totalPredictions: 0,
-    };
-  }
-
-  async hasTodaysPrediction(symbol: string): Promise<boolean> {
-    return false; // MemStorage doesn't persist predictions across sessions
-  }
-
-  async getTodaysPrediction(symbol: string): Promise<Prediction | undefined> {
-    return undefined; // MemStorage doesn't persist predictions across sessions
-  }
-
-  async deletePrediction(id: number): Promise<boolean> {
-    return false; // MemStorage doesn't persist predictions across sessions
-  }
-
-  async updatePredictionEvaluation(id: number, timeframe: '1d' | '1w' | '1m', evaluation: {
-    actualPrice: number;
-    priceAccurate: boolean;
-    directionAccurate: boolean;
-    overallAccurate: boolean;
-    weightedScore: number;
-  }): Promise<Prediction | undefined> {
-    return undefined; // MemStorage doesn't persist predictions across sessions
-  }
-
-  async updatePredictionEvaluationTimestamp(id: number): Promise<void> {
-    // MemStorage doesn't persist predictions across sessions
-  }
-
-  async getEnhancedPredictionAccuracy(symbol?: string): Promise<{
-    oneDayAccuracy: number;
-    oneWeekAccuracy: number; 
-    oneMonthAccuracy: number;
-    oneDayPriceAccuracy: number;
-    oneWeekPriceAccuracy: number;
-    oneMonthPriceAccuracy: number;
-    oneDayDirectionAccuracy: number;
-    oneWeekDirectionAccuracy: number;
-    oneMonthDirectionAccuracy: number;
-    averageWeightedScore: number;
-    totalPredictions: number;
-  }> {
-    return {
-      oneDayAccuracy: 0,
-      oneWeekAccuracy: 0,
-      oneMonthAccuracy: 0,
-      oneDayPriceAccuracy: 0,
-      oneWeekPriceAccuracy: 0,
-      oneMonthPriceAccuracy: 0,
-      oneDayDirectionAccuracy: 0,
-      oneWeekDirectionAccuracy: 0,
-      oneMonthDirectionAccuracy: 0,
-      averageWeightedScore: 0,
-      totalPredictions: 0,
-    };
-  }
-
-  // Historical Prices - stub implementation for MemStorage
-  async saveHistoricalPrice(price: InsertHistoricalPrice): Promise<HistoricalPrice> {
-    throw new Error("Historical prices not supported in MemStorage");
-  }
-
-  async getHistoricalPrice(symbol: string, date: Date): Promise<HistoricalPrice | undefined> {
-    return undefined;
-  }
-
-  async getLatestHistoricalPrice(symbol: string): Promise<HistoricalPrice | undefined> {
-    return undefined;
-  }
-
-  async batchSaveHistoricalPrices(prices: InsertHistoricalPrice[]): Promise<void> {
-    // No-op for MemStorage
-  }
-
-  async getUniqueSymbolsFromHoldings(): Promise<string[]> {
-    return Array.from(new Set(Array.from(this.holdings.values()).map(h => h.symbol)));
-  }
-
-  async getUniqueSymbolsFromWatchlist(): Promise<string[]> {
-    return Array.from(new Set(Array.from(this.watchlist.values()).map(w => w.symbol)));
-  }
-
-  // User operations for authentication (not used in memory storage but required for interface)
-  async getUser(id: string): Promise<User | undefined> {
-    return undefined;
-  }
-
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    throw new Error("User operations not supported in memory storage");
-  }
-}
+// MemStorage removed - using DatabaseStorage with proper user isolation
 
 export class DatabaseStorage implements IStorage {
   // Holdings
@@ -524,18 +332,18 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updatePredictionEvaluationTimestamp(id: number): Promise<void> {
+  async updatePredictionEvaluationTimestamp(id: number, userId: string): Promise<void> {
     try {
       await db
         .update(predictions)
         .set({ lastEvaluatedAt: new Date() })
-        .where(eq(predictions.id, id));
+        .where(and(eq(predictions.id, id), eq(predictions.userId, userId)));
     } catch (error) {
       console.error("Update prediction timestamp error:", error);
     }
   }
 
-  async getEnhancedPredictionAccuracy(symbol?: string): Promise<{
+  async getEnhancedPredictionAccuracy(userId: string, symbol?: string): Promise<{
     oneDayAccuracy: number;
     oneWeekAccuracy: number; 
     oneMonthAccuracy: number;
@@ -550,8 +358,8 @@ export class DatabaseStorage implements IStorage {
   }> {
     try {
       const allPredictions = symbol 
-        ? await db.select().from(predictions).where(eq(predictions.symbol, symbol))
-        : await db.select().from(predictions);
+        ? await db.select().from(predictions).where(and(eq(predictions.symbol, symbol), eq(predictions.userId, userId)))
+        : await db.select().from(predictions).where(eq(predictions.userId, userId));
 
       // Overall accuracy
       const oneDayPredictions = allPredictions.filter(p => p.oneDayAccurate !== null);
@@ -682,11 +490,12 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUniqueSymbolsFromHoldings(): Promise<string[]> {
+  async getUniqueSymbolsFromHoldings(userId: string): Promise<string[]> {
     try {
       const symbols = await db
         .selectDistinct({ symbol: holdings.symbol })
-        .from(holdings);
+        .from(holdings)
+        .where(eq(holdings.userId, userId));
       return symbols.map(row => row.symbol);
     } catch (error) {
       console.error("Get unique symbols from holdings error:", error);
@@ -694,11 +503,12 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUniqueSymbolsFromWatchlist(): Promise<string[]> {
+  async getUniqueSymbolsFromWatchlist(userId: string): Promise<string[]> {
     try {
       const symbols = await db
         .selectDistinct({ symbol: watchlist.symbol })
-        .from(watchlist);
+        .from(watchlist)
+        .where(eq(watchlist.userId, userId));
       return symbols.map(row => row.symbol);
     } catch (error) {
       console.error("Get unique symbols from watchlist error:", error);
