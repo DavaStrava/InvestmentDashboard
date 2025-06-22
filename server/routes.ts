@@ -1336,8 +1336,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Register optimized portfolio routes to reduce API calls
-  registerOptimizedRoutes(app);
+  // SECURITY FIX: Optimized routes disabled until user filtering is properly implemented
+  // registerOptimizedRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;

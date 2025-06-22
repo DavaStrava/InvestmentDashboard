@@ -338,7 +338,8 @@ export function registerOptimizedRoutes(app: Express): void {
   // Optimized holdings endpoint - PROTECTED
   app.get("/api/holdings/optimized", isAuthenticated, async (req, res) => {
     try {
-      const holdings = await optimizedPortfolioService.getOptimizedHoldings();
+      const userId = req.user?.claims?.sub;
+      const holdings = await optimizedPortfolioService.getOptimizedHoldings(userId);
       res.json(holdings);
     } catch (error) {
       logger.error("HOLDINGS_ERROR", "Failed to fetch optimized holdings", error);
@@ -349,7 +350,8 @@ export function registerOptimizedRoutes(app: Express): void {
   // Optimized portfolio summary endpoint - PROTECTED
   app.get("/api/portfolio/summary/optimized", isAuthenticated, async (req, res) => {
     try {
-      const summary = await optimizedPortfolioService.getOptimizedSummary();
+      const userId = req.user?.claims?.sub;
+      const summary = await optimizedPortfolioService.getOptimizedSummary(userId);
       res.json(summary);
     } catch (error) {
       logger.error("SUMMARY_ERROR", "Failed to fetch optimized summary", error);
