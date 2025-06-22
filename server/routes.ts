@@ -34,6 +34,7 @@ import { predictionEvaluator } from "./prediction-evaluator";
 import { marketPriceService } from "./market-price-service";
 import { registerOptimizedRoutes } from "./optimized-routes";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { getUserId, type AuthenticatedRequest } from "./auth-types";
 
 // FMP API Configuration
 const FMP_API_KEY = process.env.FMP_API_KEY;
@@ -444,7 +445,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Portfolio summary endpoint - PROTECTED
   app.get("/api/portfolio/summary", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const holdings = await storage.getHoldings(userId);
       
       if (holdings.length === 0) {
@@ -513,7 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Holdings endpoints with rate limiting
   app.get("/api/holdings", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       const holdings = await storage.getHoldings(userId);
       
       if (holdings.length === 0) {
