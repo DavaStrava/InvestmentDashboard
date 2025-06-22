@@ -279,16 +279,16 @@ export class MemStorage implements IStorage {
 
 export class DatabaseStorage implements IStorage {
   // Holdings
-  async getHoldings(): Promise<Holding[]> {
-    return await db.select().from(holdings);
+  async getHoldings(userId: string): Promise<Holding[]> {
+    return await db.select().from(holdings).where(eq(holdings.userId, userId));
   }
 
-  async getHolding(id: number): Promise<Holding | undefined> {
-    const [holding] = await db.select().from(holdings).where(eq(holdings.id, id));
+  async getHolding(id: number, userId: string): Promise<Holding | undefined> {
+    const [holding] = await db.select().from(holdings).where(and(eq(holdings.id, id), eq(holdings.userId, userId)));
     return holding || undefined;
   }
 
-  async createHolding(insertHolding: InsertHolding): Promise<Holding> {
+  async createHolding(insertHolding: InsertHolding & { userId: string }): Promise<Holding> {
     const [holding] = await db
       .insert(holdings)
       .values(insertHolding)
@@ -296,31 +296,31 @@ export class DatabaseStorage implements IStorage {
     return holding;
   }
 
-  async updateHolding(id: number, updates: Partial<InsertHolding>): Promise<Holding | undefined> {
+  async updateHolding(id: number, userId: string, updates: Partial<InsertHolding>): Promise<Holding | undefined> {
     const [holding] = await db
       .update(holdings)
       .set(updates)
-      .where(eq(holdings.id, id))
+      .where(and(eq(holdings.id, id), eq(holdings.userId, userId)))
       .returning();
     return holding || undefined;
   }
 
-  async deleteHolding(id: number): Promise<boolean> {
-    const result = await db.delete(holdings).where(eq(holdings.id, id));
+  async deleteHolding(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(holdings).where(and(eq(holdings.id, id), eq(holdings.userId, userId)));
     return (result.rowCount || 0) > 0;
   }
 
   // Watchlist
-  async getWatchlist(): Promise<WatchlistItem[]> {
-    return await db.select().from(watchlist);
+  async getWatchlist(userId: string): Promise<WatchlistItem[]> {
+    return await db.select().from(watchlist).where(eq(watchlist.userId, userId));
   }
 
-  async getWatchlistItem(id: number): Promise<WatchlistItem | undefined> {
-    const [item] = await db.select().from(watchlist).where(eq(watchlist.id, id));
+  async getWatchlistItem(id: number, userId: string): Promise<WatchlistItem | undefined> {
+    const [item] = await db.select().from(watchlist).where(and(eq(watchlist.id, id), eq(watchlist.userId, userId)));
     return item || undefined;
   }
 
-  async createWatchlistItem(insertItem: InsertWatchlistItem): Promise<WatchlistItem> {
+  async createWatchlistItem(insertItem: InsertWatchlistItem & { userId: string }): Promise<WatchlistItem> {
     const [item] = await db
       .insert(watchlist)
       .values(insertItem)
@@ -328,18 +328,18 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async deleteWatchlistItem(id: number): Promise<boolean> {
-    const result = await db.delete(watchlist).where(eq(watchlist.id, id));
+  async deleteWatchlistItem(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(watchlist).where(and(eq(watchlist.id, id), eq(watchlist.userId, userId)));
     return (result.rowCount || 0) > 0;
   }
 
-  async isSymbolInWatchlist(symbol: string): Promise<boolean> {
-    const [item] = await db.select().from(watchlist).where(eq(watchlist.symbol, symbol));
+  async isSymbolInWatchlist(symbol: string, userId: string): Promise<boolean> {
+    const [item] = await db.select().from(watchlist).where(and(eq(watchlist.symbol, symbol), eq(watchlist.userId, userId)));
     return !!item;
   }
 
   // Predictions
-  async createPrediction(insertPrediction: InsertPrediction): Promise<Prediction> {
+  async createPrediction(insertPrediction: InsertPrediction & { userId: string }): Promise<Prediction> {
     const [prediction] = await db
       .insert(predictions)
       .values(insertPrediction)
@@ -347,19 +347,19 @@ export class DatabaseStorage implements IStorage {
     return prediction;
   }
 
-  async getPredictions(symbol?: string): Promise<Prediction[]> {
+  async getPredictions(userId: string, symbol?: string): Promise<Prediction[]> {
     if (symbol) {
-      return await db.select().from(predictions).where(eq(predictions.symbol, symbol));
+      return await db.select().from(predictions).where(and(eq(predictions.symbol, symbol), eq(predictions.userId, userId)));
     }
-    return await db.select().from(predictions);
+    return await db.select().from(predictions).where(eq(predictions.userId, userId));
   }
 
-  async getPredictionById(id: number): Promise<Prediction | undefined> {
-    const [prediction] = await db.select().from(predictions).where(eq(predictions.id, id));
+  async getPredictionById(id: number, userId: string): Promise<Prediction | undefined> {
+    const [prediction] = await db.select().from(predictions).where(and(eq(predictions.id, id), eq(predictions.userId, userId)));
     return prediction || undefined;
   }
 
-  async updatePredictionActuals(id: number, timeframe: '1d' | '1w' | '1m', actualPrice: number, accurate: boolean): Promise<Prediction | undefined> {
+  async updatePredictionActuals(id: number, userId: string, timeframe: '1d' | '1w' | '1m', actualPrice: number, accurate: boolean): Promise<Prediction | undefined> {
     let updateData: any = { updatedAt: new Date() };
     
     switch (timeframe) {
@@ -380,20 +380,20 @@ export class DatabaseStorage implements IStorage {
     const [prediction] = await db
       .update(predictions)
       .set(updateData)
-      .where(eq(predictions.id, id))
+      .where(and(eq(predictions.id, id), eq(predictions.userId, userId)))
       .returning();
     return prediction || undefined;
   }
 
-  async getPredictionAccuracy(symbol?: string): Promise<{ 
+  async getPredictionAccuracy(userId: string, symbol?: string): Promise<{ 
     oneDayAccuracy: number; 
     oneWeekAccuracy: number; 
     oneMonthAccuracy: number; 
     totalPredictions: number;
   }> {
     const allPredictions = symbol 
-      ? await db.select().from(predictions).where(eq(predictions.symbol, symbol))
-      : await db.select().from(predictions);
+      ? await db.select().from(predictions).where(and(eq(predictions.symbol, symbol), eq(predictions.userId, userId)))
+      : await db.select().from(predictions).where(eq(predictions.userId, userId));
     
     const oneDayPredictions = allPredictions.filter(p => p.oneDayAccurate !== null);
     const oneWeekPredictions = allPredictions.filter(p => p.oneWeekAccurate !== null);
@@ -411,7 +411,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async hasTodaysPrediction(symbol: string): Promise<boolean> {
+  async hasTodaysPrediction(symbol: string, userId: string): Promise<boolean> {
     try {
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -424,6 +424,7 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(predictions.symbol, symbol),
+            eq(predictions.userId, userId),
             gte(predictions.predictionDate, startOfDay),
             lt(predictions.predictionDate, endOfDay)
           )
@@ -438,7 +439,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getTodaysPrediction(symbol: string): Promise<Prediction | undefined> {
+  async getTodaysPrediction(symbol: string, userId: string): Promise<Prediction | undefined> {
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
@@ -450,6 +451,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(predictions.symbol, symbol),
+          eq(predictions.userId, userId),
           gte(predictions.predictionDate, startOfDay),
           lt(predictions.predictionDate, endOfDay)
         )
@@ -459,11 +461,11 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deletePrediction(id: number): Promise<boolean> {
+  async deletePrediction(id: number, userId: string): Promise<boolean> {
     try {
       const result = await db
         .delete(predictions)
-        .where(eq(predictions.id, id))
+        .where(and(eq(predictions.id, id), eq(predictions.userId, userId)))
         .returning();
       
       return result.length > 0;
@@ -473,7 +475,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updatePredictionEvaluation(id: number, timeframe: '1d' | '1w' | '1m', evaluation: {
+  async updatePredictionEvaluation(id: number, userId: string, timeframe: '1d' | '1w' | '1m', evaluation: {
     actualPrice: number;
     priceAccurate: boolean;
     directionAccurate: boolean;
@@ -512,7 +514,7 @@ export class DatabaseStorage implements IStorage {
       const [prediction] = await db
         .update(predictions)
         .set(updateData)
-        .where(eq(predictions.id, id))
+        .where(and(eq(predictions.id, id), eq(predictions.userId, userId)))
         .returning();
 
       return prediction || undefined;
