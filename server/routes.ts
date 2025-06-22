@@ -490,7 +490,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Holdings endpoints with rate limiting
   app.get("/api/holdings", isAuthenticated, async (req, res) => {
     try {
-      const holdings = await storage.getHoldings();
+      const userId = req.user?.claims?.sub;
+      const holdings = await storage.getHoldings(userId);
       
       if (holdings.length === 0) {
         return res.json([]);
@@ -549,12 +550,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/holdings", isAuthenticated, async (req, res) => {
     try {
+      const userId = req.user?.claims?.sub;
       const result = insertHoldingSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ message: "Invalid holding data", errors: result.error.issues });
       }
 
-      const holding = await storage.createHolding(result.data);
+      const holding = await storage.createHolding({ ...result.data, userId });
       res.status(201).json(holding);
     } catch (error) {
       res.status(500).json({ message: "Failed to create holding" });
@@ -563,6 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/holdings/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = req.user?.claims?.sub;
       const id = parseInt(req.params.id);
       const result = insertHoldingSchema.partial().safeParse(req.body);
       
@@ -570,7 +573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid holding data", errors: result.error.issues });
       }
 
-      const holding = await storage.updateHolding(id, result.data);
+      const holding = await storage.updateHolding(id, userId, result.data);
       
       if (!holding) {
         return res.status(404).json({ message: "Holding not found" });
@@ -584,8 +587,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/holdings/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = req.user?.claims?.sub;
       const id = parseInt(req.params.id);
-      const success = await storage.deleteHolding(id);
+      const success = await storage.deleteHolding(id, userId);
       
       if (!success) {
         return res.status(404).json({ message: "Holding not found" });
@@ -679,7 +683,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Check if symbol already exists in database
-          const existingHoldings = await storage.getHoldings();
+          const userId = req.user?.claims?.sub;
+          const existingHoldings = await storage.getHoldings(userId);
           const existsInDb = existingHoldings.some(h => h.symbol === holdingData.symbol);
           if (existsInDb) {
             errors.push(`Row ${index + 1}: Symbol ${holdingData.symbol} already exists in portfolio`);
@@ -696,9 +701,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Insert valid holdings
       const createdHoldings = [];
+      const userId = req.user?.claims?.sub;
       for (const holdingData of processedHoldings) {
         try {
-          const created = await storage.createHolding(holdingData);
+          const created = await storage.createHolding({ ...holdingData, userId });
           createdHoldings.push(created);
         } catch (error) {
           errors.push(`Failed to save ${holdingData.symbol}: ${error instanceof Error ? error.message : 'Database error'}`);
@@ -727,8 +733,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Watchlist endpoints - PROTECTED
   app.get("/api/watchlist", isAuthenticated, async (req, res) => {
     try {
+      const userId = req.user?.claims?.sub;
       logger.info('WATCHLIST_REQUEST', 'Fetching watchlist data');
-      const watchlist = await storage.getWatchlist();
+      const watchlist = await storage.getWatchlist(userId);
       logger.debug('WATCHLIST_STORAGE', `Retrieved ${watchlist.length} items from storage`);
       
       const watchlistWithQuotes = [];
