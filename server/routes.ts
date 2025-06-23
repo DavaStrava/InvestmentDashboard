@@ -315,6 +315,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check session state
+  app.get('/api/auth/debug', (req, res) => {
+    res.json({
+      isAuthenticated: req.isAuthenticated(),
+      user: req.user || null,
+      sessionID: req.sessionID,
+      session: req.session || null
+    });
+  });
+
   // Stock quote endpoint (public)
   app.get("/api/stocks/:symbol/quote", async (req, res) => {
     try {

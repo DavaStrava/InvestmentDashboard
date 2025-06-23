@@ -115,31 +115,22 @@ export async function setupAuth(app: Express) {
   );
   passport.use(localhostStrategy);
 
-  passport.serializeUser((user: any, cb) => {
-    cb(null, JSON.stringify(user));
-  });
-  
-  passport.deserializeUser((serialized: string, cb) => {
-    try {
-      const user = JSON.parse(serialized);
-      cb(null, user);
-    } catch (error) {
-      cb(error, null);
-    }
-  });
+  passport.serializeUser((user: Express.User, cb) => cb(null, user));
+  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    // Use the correct domain from REPLIT_DOMAINS
-    const domain = process.env.REPLIT_DOMAINS!.split(",")[0];
-    passport.authenticate(`replitauth:${domain}`, {
+    // Use localhost strategy for development, actual domain for production
+    const strategyName = req.hostname === 'localhost' ? 'replitauth:localhost' : `replitauth:${req.hostname}`;
+    passport.authenticate(strategyName, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
     })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
-    const domain = process.env.REPLIT_DOMAINS!.split(",")[0];
-    passport.authenticate(`replitauth:${domain}`, {
+    // Use localhost strategy for development, actual domain for production
+    const strategyName = req.hostname === 'localhost' ? 'replitauth:localhost' : `replitauth:${req.hostname}`;
+    passport.authenticate(strategyName, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
     })(req, res, next);
