@@ -45,11 +45,13 @@ export function isAuthenticatedUser(user: any): user is AuthenticatedUser {
 }
 
 // Helper to safely extract user ID from authenticated request
+// This function assumes the request has already passed through isAuthenticated middleware
 export function getUserId(req: Request): string {
-  if (!req.user || !isAuthenticatedUser(req.user)) {
+  const user = req.user as any;
+  if (!user || !user.claims || !user.claims.sub) {
     throw new Error("User not authenticated");
   }
-  return req.user.claims.sub;
+  return user.claims.sub;
 }
 
 // Safe version that returns null for optional cases

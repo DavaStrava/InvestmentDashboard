@@ -577,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/holdings", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       const result = insertHoldingSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ message: "Invalid holding data", errors: result.error.issues });
@@ -592,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/holdings/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       const id = parseInt(req.params.id);
       const result = insertHoldingSchema.partial().safeParse(req.body);
       
@@ -614,7 +614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/holdings/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       const id = parseInt(req.params.id);
       const success = await storage.deleteHolding(id, userId);
       
@@ -631,6 +631,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CSV Portfolio Upload endpoint
   app.post("/api/portfolio/upload", isAuthenticated, upload.single('csvFile'), async (req, res) => {
     try {
+      const userId = getUserId(req); // Extract userId once at route level
+      
       if (!req.file) {
         return res.status(400).json({ message: "No CSV file uploaded" });
       }
@@ -710,7 +712,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Check if symbol already exists in database
-          const userId = req.user?.claims?.sub;
           const existingHoldings = await storage.getHoldings(userId);
           const existsInDb = existingHoldings.some(h => h.symbol === holdingData.symbol);
           if (existsInDb) {
@@ -728,7 +729,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Insert valid holdings
       const createdHoldings = [];
-      const userId = req.user?.claims?.sub;
       for (const holdingData of processedHoldings) {
         try {
           const created = await storage.createHolding({ ...holdingData, userId });
@@ -760,7 +760,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Watchlist endpoints - PROTECTED
   app.get("/api/watchlist", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       logger.info('WATCHLIST_REQUEST', 'Fetching watchlist data');
       const watchlist = await storage.getWatchlist(userId);
       logger.debug('WATCHLIST_STORAGE', `Retrieved ${watchlist.length} items from storage`);
