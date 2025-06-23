@@ -1312,8 +1312,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update prediction with actual price (for backtesting)
-  app.put("/api/predictions/:id/actual", async (req, res) => {
+  app.put("/api/predictions/:id/actual", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const id = parseInt(req.params.id);
       const { timeframe, actualPrice, accurate } = req.body;
       
@@ -1323,6 +1324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updatedPrediction = await storage.updatePredictionActuals(
         id, 
+        userId,
         timeframe as '1d' | '1w' | '1m', 
         parseFloat(actualPrice), 
         Boolean(accurate)
@@ -1340,15 +1342,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete prediction
-  app.delete("/api/predictions/:id", async (req, res) => {
+  app.delete("/api/predictions/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const id = parseInt(req.params.id);
       
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid prediction ID" });
       }
 
-      const deleted = await storage.deletePrediction(id);
+      const deleted = await storage.deletePrediction(id, userId);
 
       if (!deleted) {
         return res.status(404).json({ message: "Prediction not found" });
