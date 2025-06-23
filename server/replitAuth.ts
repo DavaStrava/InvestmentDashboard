@@ -78,8 +78,12 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
-    updateUserSession(user, tokens);
+    const user: any = {
+      claims: tokens.claims(),
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: tokens.claims()?.exp || 0
+    };
     await upsertUser(tokens.claims());
     verified(null, user);
   };
@@ -98,8 +102,18 @@ export async function setupAuth(app: Express) {
     passport.use(strategy);
   }
 
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+  passport.serializeUser((user: any, cb) => {
+    cb(null, JSON.stringify(user));
+  });
+  
+  passport.deserializeUser((serialized: string, cb) => {
+    try {
+      const user = JSON.parse(serialized);
+      cb(null, user);
+    } catch (error) {
+      cb(error, null);
+    }
+  });
 
   app.get("/api/login", (req, res, next) => {
     // Use the correct domain from REPLIT_DOMAINS
