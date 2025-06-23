@@ -1070,8 +1070,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Check if today's prediction exists for a symbol
-  app.get("/api/stocks/:symbol/prediction/today", async (req, res) => {
+  app.get("/api/stocks/:symbol/prediction/today", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const symbol = req.params.symbol.toUpperCase();
       console.log(`[PREDICTION_TODAY_CHECK] Starting check for ${symbol}`);
       
@@ -1085,7 +1086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[PREDICTION_TODAY_CHECK] ${symbol} - Market closed, fetching most recent prediction`);
         
         // Always get most recent prediction when market is closed, regardless of today's prediction
-        const predictions = await storage.getPredictions(symbol);
+        const predictions = await storage.getPredictions(userId, symbol);
         const mostRecent = predictions.length > 0 ? predictions[0] : null;
         
         if (mostRecent) {
@@ -1110,11 +1111,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Normal trading day logic
-      const hasPrediction = await storage.hasTodaysPrediction(symbol);
+      const hasPrediction = await storage.hasTodaysPrediction(symbol, userId);
       console.log(`[PREDICTION_TODAY_CHECK] ${symbol} hasPrediction result: ${hasPrediction}`);
       
       if (hasPrediction) {
-        const prediction = await storage.getTodaysPrediction(symbol);
+        const prediction = await storage.getTodaysPrediction(symbol, userId);
         console.log(`[PREDICTION_TODAY_CHECK] ${symbol} existing prediction found:`, {
           id: prediction?.id,
           predictionDate: prediction?.predictionDate,
@@ -1132,7 +1133,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI prediction endpoint
-  app.get("/api/stocks/:symbol/prediction", async (req, res) => {
+  app.get("/api/stocks/:symbol/prediction", isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
     const { symbol } = req.params;
     
     try {
@@ -1152,7 +1154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if prediction already exists for today BEFORE generating
-      const hasTodaysPrediction = await storage.hasTodaysPrediction(symbol);
+      const hasTodaysPrediction = await storage.hasTodaysPrediction(symbol, userId);
       if (hasTodaysPrediction) {
         console.log(`[PREDICTION_GENERATION] ${symbol} - Already has today's prediction, skipping generation`);
         return res.status(409).json({ 
@@ -1205,9 +1207,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Prediction tracking API routes
   
   // Get enhanced prediction accuracy stats (general) - MUST come before :symbol route
-  app.get("/api/predictions/accuracy/enhanced", async (req, res) => {
+  app.get("/api/predictions/accuracy/enhanced", isAuthenticated, async (req, res) => {
     try {
-      const accuracy = await storage.getEnhancedPredictionAccuracy();
+      const userId = getUserId(req);
+      const accuracy = await storage.getEnhancedPredictionAccuracy(userId);
       res.json(accuracy);
     } catch (error) {
       console.error("Enhanced predictions accuracy error:", error);
@@ -1216,9 +1219,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get prediction accuracy stats (general) - MUST come before :symbol route
-  app.get("/api/predictions/accuracy", async (req, res) => {
+  app.get("/api/predictions/accuracy", isAuthenticated, async (req, res) => {
     try {
-      const accuracy = await storage.getPredictionAccuracy();
+      const userId = getUserId(req);
+      const accuracy = await storage.getPredictionAccuracy(userId);
       res.json(accuracy);
     } catch (error) {
       console.error("Predictions accuracy error:", error);
@@ -1251,9 +1255,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all predictions
-  app.get("/api/predictions", async (req, res) => {
+  app.get("/api/predictions", isAuthenticated, async (req, res) => {
     try {
-      const predictions = await storage.getPredictions();
+      const userId = getUserId(req);
+      const predictions = await storage.getPredictions(userId);
       res.json(predictions);
     } catch (error) {
       console.error("Predictions get all error:", error);
@@ -1262,8 +1267,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new prediction
-  app.post("/api/predictions", async (req, res) => {
+  app.post("/api/predictions", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       console.log(`[PREDICTION_STORAGE] Attempting to store prediction:`, {
         symbol: req.body.symbol,
         currentPrice: req.body.currentPrice,
@@ -1271,7 +1277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Check if prediction already exists for today before storing
-      const hasTodaysPrediction = await storage.hasTodaysPrediction(req.body.symbol);
+      const hasTodaysPrediction = await storage.hasTodaysPrediction(req.body.symbol, userId);
       if (hasTodaysPrediction) {
         console.log(`[PREDICTION_STORAGE] ${req.body.symbol} already has today's prediction - rejecting duplicate`);
         return res.status(409).json({ 
