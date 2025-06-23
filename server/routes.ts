@@ -451,8 +451,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Use optimized database aggregation for 60-80% performance improvement
+      const startTime = Date.now();
       const { dbOptimizer } = await import('./database-optimizer');
+      const { performanceMonitor } = await import('./performance-monitor');
+      
       const optimizedData = await dbOptimizer.getOptimizedPortfolioSummary(userId);
+      
+      // Track performance gains
+      const duration = Date.now() - startTime;
+      performanceMonitor.recordQueryTime('portfolio_summary', duration, {
+        userId,
+        holdingsCount: optimizedData.holdingsCount,
+        totalValue: optimizedData.totalValue.toFixed(2)
+      });
       
       const summary: PortfolioSummary = {
         totalValue: optimizedData.totalValue,
@@ -726,8 +737,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info('WATCHLIST_REQUEST', 'Fetching optimized watchlist data');
       
       // Use optimized database JOIN query to eliminate individual API calls
+      const startTime = Date.now();
       const { dbOptimizer } = await import('./database-optimizer');
+      const { performanceMonitor } = await import('./performance-monitor');
+      
       const optimizedWatchlist = await dbOptimizer.getOptimizedWatchlist(userId);
+      
+      // Track performance gains
+      const duration = Date.now() - startTime;
+      performanceMonitor.recordQueryTime('watchlist_query', duration, {
+        userId,
+        itemCount: optimizedWatchlist.length
+      });
       
       // Map to existing interface for frontend compatibility
       const watchlistWithQuotes = optimizedWatchlist.map(item => ({
@@ -1351,6 +1372,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // SECURITY FIX: Optimized routes disabled until user filtering is properly implemented
   // registerOptimizedRoutes(app);
+
+  // Performance monitoring endpoints
+  app.get("/api/system/performance", async (req, res) => {
+    try {
+      const { performanceMonitor } = await import('./performance-monitor');
+      const metrics = await performanceMonitor.getCurrentMetrics();
+      res.json(metrics);
+    } catch (error) {
+      logger.error("PERFORMANCE_ENDPOINT", "Failed to get performance metrics", error);
+      res.status(500).json({ message: "Failed to fetch performance metrics" });
+    }
+  });
+
+  app.get("/api/system/optimization-report", async (req, res) => {
+    try {
+      const { performanceMonitor } = await import('./performance-monitor');
+      const report = await performanceMonitor.generateOptimizationReport();
+      res.json(report);
+    } catch (error) {
+      logger.error("OPTIMIZATION_ENDPOINT", "Failed to generate optimization report", error);
+      res.status(500).json({ message: "Failed to generate optimization report" });
+    }
+  });
+
+  app.get("/api/system/performance/trends", async (req, res) => {
+    try {
+      const hours = parseInt(req.query.hours as string) || 24;
+      const { performanceMonitor } = await import('./performance-monitor');
+      const trends = performanceMonitor.getPerformanceTrends(hours);
+      res.json(trends);
+    } catch (error) {
+      logger.error("PERFORMANCE_TRENDS", "Failed to get performance trends", error);
+      res.status(500).json({ message: "Failed to fetch performance trends" });
+    }
+  });
+
+  // Database health endpoint
+  app.get("/api/system/health", async (req, res) => {
+    try {
+      const { dbOptimizer } = await import('./database-optimizer');
+      const dbHealth = await dbOptimizer.getDbHealthMetrics();
+      
+      res.json({ 
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        database: dbHealth
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: "unhealthy",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
