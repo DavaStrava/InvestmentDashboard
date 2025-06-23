@@ -812,18 +812,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/watchlist", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const result = insertWatchlistSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ message: "Invalid watchlist data", errors: result.error.issues });
       }
 
       // Check if symbol already exists in watchlist
-      const exists = await storage.isSymbolInWatchlist(result.data.symbol);
+      const exists = await storage.isSymbolInWatchlist(result.data.symbol, userId);
       if (exists) {
         return res.status(409).json({ message: "Symbol already in watchlist" });
       }
 
-      const item = await storage.createWatchlistItem(result.data);
+      const item = await storage.createWatchlistItem({ ...result.data, userId });
       res.status(201).json(item);
     } catch (error) {
       res.status(500).json({ message: "Failed to add to watchlist" });
@@ -832,8 +833,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/watchlist/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const id = parseInt(req.params.id);
-      const success = await storage.deleteWatchlistItem(id);
+      const success = await storage.deleteWatchlistItem(id, userId);
       
       if (!success) {
         return res.status(404).json({ message: "Watchlist item not found" });
@@ -980,13 +982,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Check for existing daily prediction
-  app.get("/api/stocks/:symbol/prediction/today", async (req, res) => {
+  app.get("/api/stocks/:symbol/prediction/today", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const { symbol } = req.params;
-      const hasPrediction = await storage.hasTodaysPrediction(symbol.toUpperCase());
+      const hasPrediction = await storage.hasTodaysPrediction(symbol.toUpperCase(), userId);
       
       if (hasPrediction) {
-        const existingPrediction = await storage.getTodaysPrediction(symbol.toUpperCase());
+        const existingPrediction = await storage.getTodaysPrediction(symbol.toUpperCase(), userId);
         res.json({ hasPrediction: true, prediction: existingPrediction });
       } else {
         res.json({ hasPrediction: false });

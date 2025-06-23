@@ -48,10 +48,17 @@ export function isAuthenticatedUser(user: any): user is AuthenticatedUser {
 // This function assumes the request has already passed through isAuthenticated middleware
 export function getUserId(req: Request): string {
   const user = req.user as any;
-  if (!user || !user.claims || !user.claims.sub) {
+  if (!user) {
     throw new Error("User not authenticated");
   }
-  return user.claims.sub;
+  
+  // Handle both direct claims and nested user structure
+  const claims = user.claims || user;
+  if (!claims || !claims.sub) {
+    throw new Error("User claims not found");
+  }
+  
+  return claims.sub;
 }
 
 // Safe version that returns null for optional cases
