@@ -283,9 +283,9 @@ export class ConsolidatedPortfolioService {
     if (!latestPrice) return null;
 
     return {
-      closePrice: latestPrice.closePrice,
-      change: latestPrice.change,
-      changePercent: latestPrice.changePercent
+      closePrice: parseFloat(latestPrice.closePrice.toString()),
+      change: latestPrice.change ? parseFloat(latestPrice.change.toString()) : 0,
+      changePercent: latestPrice.changePercent ? parseFloat(latestPrice.changePercent.toString()) : 0
     };
   }
 
