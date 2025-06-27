@@ -688,16 +688,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             normalizedRow[normalizedKey] = row[key];
           });
 
-          // Extract data with flexible column matching for various CSV formats
-          // Handle Merrill Lynch format: "Symbol ", "Description", "Quantity", "Unit Cost"
-          const symbol = normalizedRow.symbol || normalizedRow['symbol '] || normalizedRow.ticker || normalizedRow.stock;
-          const companyName = normalizedRow.description || normalizedRow.companyname || normalizedRow.company || normalizedRow.name || symbol;
-          const shares = normalizedRow.quantity || normalizedRow.shares || normalizedRow.qty;
-          
-          // Priority order for cost: Unit Cost (Merrill Lynch), Average Cost, Price, Cost
-          const avgCostPerShare = normalizedRow['unit cost'] || normalizedRow.unitcost || 
-                                normalizedRow.averagecost || normalizedRow.avgcostpershare ||
-                                normalizedRow.price || normalizedRow.cost || normalizedRow.avgcost;
+          // Extract data using exact column names from Merrill Lynch format
+          // The CSV parser already filters for valid stock rows, so we just need to extract the fields
+          const symbol = row['Symbol'] || row['Symbol '] || '';
+          const companyName = row['Description'] || symbol;
+          const shares = row['Quantity'] || '';
+          const avgCostPerShare = row['Unit Cost'] || '';
 
           // Skip rows that are clearly not holdings data (empty symbol, totals, cash, etc.)
           if (!symbol || !symbol.toString().trim() || 
