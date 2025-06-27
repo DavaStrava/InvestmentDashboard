@@ -285,17 +285,65 @@ const upload = multer({
   }
 });
 
-// CSV parsing helper function
+// CSV parsing helper function - Enhanced for Merrill Lynch format
 async function parseCSVBuffer(buffer: Buffer): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const results: any[] = [];
-    const stream = Readable.from(buffer.toString());
+    const csvContent = buffer.toString();
     
-    stream
-      .pipe(csv())
-      .on('data', (data) => results.push(data))
-      .on('end', () => resolve(results))
-      .on('error', reject);
+    // Split into lines and process manually for better control
+    const lines = csvContent.split('\n');
+    let headerFound = false;
+    let headers: string[] = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Skip empty lines
+      if (!line) continue;
+      
+      // Look for header line containing "Symbol"
+      if (!headerFound && line.includes('Symbol')) {
+        // Parse header line - handle quoted CSV format
+        headers = line.split(',').map(h => h.replace(/"/g, '').trim());
+        headerFound = true;
+        continue;
+      }
+      
+      // Process data lines after header is found
+      if (headerFound && line.includes('"')) {
+        try {
+          // Parse CSV line with proper quote handling
+          const values = line.split(',').map(v => v.replace(/"/g, '').trim());
+          
+          // Skip if not enough values or empty symbol
+          if (values.length < headers.length || !values[0]) {
+            continue;
+          }
+          
+          // Create object with header keys and values
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+          
+          // Skip rows that are clearly not stock holdings
+          const symbol = row['Symbol'] || row['Symbol '] || '';
+          if (symbol && 
+              !symbol.toLowerCase().includes('total') &&
+              !symbol.toLowerCase().includes('balance') &&
+              !symbol.toLowerCase().includes('cash') &&
+              !symbol.toLowerCase().includes('money') &&
+              !symbol.toLowerCase().includes('pending')) {
+            results.push(row);
+          }
+        } catch (error) {
+          console.log(`Skipping malformed line ${i}: ${line}`);
+        }
+      }
+    }
+    
+    resolve(results);
   });
 }
 
@@ -315,44 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug CSV parsing endpoint (temporary for testing)
-  app.post("/api/debug/csv", upload.single('csvFile'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No CSV file uploaded" });
-      }
 
-      const csvData = await parseCSVBuffer(req.file.buffer);
-      
-      // Find header row
-      let headerRowIndex = -1;
-      let headerRow: any = {};
-      
-      for (let i = 0; i < csvData.length; i++) {
-        const row = csvData[i];
-        const keys = Object.keys(row);
-        
-        if (keys.some(key => key.toLowerCase().trim().includes('symbol'))) {
-          headerRowIndex = i;
-          headerRow = row;
-          break;
-        }
-      }
-
-      res.json({
-        totalRows: csvData.length,
-        headerRowIndex,
-        headerColumns: Object.keys(headerRow),
-        sampleRows: csvData.slice(0, 10),
-        dataRows: csvData.slice(headerRowIndex + 1, headerRowIndex + 6)
-      });
-    } catch (error) {
-      res.status(500).json({ 
-        message: "Failed to parse CSV", 
-        error: error instanceof Error ? error.message : "Unknown error" 
-      });
-    }
-  });
 
   // Stock quote endpoint (public)
   app.get("/api/stocks/:symbol/quote", async (req, res) => {
@@ -664,30 +675,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const errors: string[] = [];
       let successCount = 0;
 
-      // Find the header row (look for "Symbol" column)
-      let headerRowIndex = -1;
-      let headerRow: any = {};
-      
-      for (let i = 0; i < csvData.length; i++) {
-        const row = csvData[i];
-        const keys = Object.keys(row);
-        
-        // Look for row that contains "Symbol" column (case insensitive)
-        if (keys.some(key => key.toLowerCase().trim().includes('symbol'))) {
-          headerRowIndex = i;
-          headerRow = row;
-          break;
-        }
-      }
+      logger.info('CSV_PARSING', `Successfully parsed ${csvData.length} data rows from CSV`);
 
-      if (headerRowIndex === -1) {
-        return res.status(400).json({ message: "Could not find header row with 'Symbol' column" });
-      }
-
-      logger.info('CSV_HEADER', `Found header row at index ${headerRowIndex}`, Object.keys(headerRow));
-
-      // Process data rows (skip header and any rows before it)
-      for (let index = headerRowIndex + 1; index < csvData.length; index++) {
+      // Process each data row
+      for (let index = 0; index < csvData.length; index++) {
         const row = csvData[index];
         try {
           // Normalize column names (case insensitive, flexible matching)
@@ -698,11 +689,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Extract data with flexible column matching for various CSV formats
+          // Handle Merrill Lynch format: "Symbol ", "Description", "Quantity", "Unit Cost"
           const symbol = normalizedRow.symbol || normalizedRow['symbol '] || normalizedRow.ticker || normalizedRow.stock;
           const companyName = normalizedRow.description || normalizedRow.companyname || normalizedRow.company || normalizedRow.name || symbol;
           const shares = normalizedRow.quantity || normalizedRow.shares || normalizedRow.qty;
           
-          // Priority order for cost: Unit Cost, Average Cost, Price, Cost
+          // Priority order for cost: Unit Cost (Merrill Lynch), Average Cost, Price, Cost
           const avgCostPerShare = normalizedRow['unit cost'] || normalizedRow.unitcost || 
                                 normalizedRow.averagecost || normalizedRow.avgcostpershare ||
                                 normalizedRow.price || normalizedRow.cost || normalizedRow.avgcost;
