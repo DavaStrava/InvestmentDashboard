@@ -315,6 +315,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug CSV parsing endpoint (temporary for testing)
+  app.post("/api/debug/csv", upload.single('csvFile'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No CSV file uploaded" });
+      }
+
+      const csvData = await parseCSVBuffer(req.file.buffer);
+      
+      // Find header row
+      let headerRowIndex = -1;
+      let headerRow: any = {};
+      
+      for (let i = 0; i < csvData.length; i++) {
+        const row = csvData[i];
+        const keys = Object.keys(row);
+        
+        if (keys.some(key => key.toLowerCase().trim().includes('symbol'))) {
+          headerRowIndex = i;
+          headerRow = row;
+          break;
+        }
+      }
+
+      res.json({
+        totalRows: csvData.length,
+        headerRowIndex,
+        headerColumns: Object.keys(headerRow),
+        sampleRows: csvData.slice(0, 10),
+        dataRows: csvData.slice(headerRowIndex + 1, headerRowIndex + 6)
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        message: "Failed to parse CSV", 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
   // Stock quote endpoint (public)
   app.get("/api/stocks/:symbol/quote", async (req, res) => {
     try {
@@ -625,7 +664,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const errors: string[] = [];
       let successCount = 0;
 
-      for (let index = 0; index < csvData.length; index++) {
+      // Find the header row (look for "Symbol" column)
+      let headerRowIndex = -1;
+      let headerRow: any = {};
+      
+      for (let i = 0; i < csvData.length; i++) {
+        const row = csvData[i];
+        const keys = Object.keys(row);
+        
+        // Look for row that contains "Symbol" column (case insensitive)
+        if (keys.some(key => key.toLowerCase().trim().includes('symbol'))) {
+          headerRowIndex = i;
+          headerRow = row;
+          break;
+        }
+      }
+
+      if (headerRowIndex === -1) {
+        return res.status(400).json({ message: "Could not find header row with 'Symbol' column" });
+      }
+
+      logger.info('CSV_HEADER', `Found header row at index ${headerRowIndex}`, Object.keys(headerRow));
+
+      // Process data rows (skip header and any rows before it)
+      for (let index = headerRowIndex + 1; index < csvData.length; index++) {
         const row = csvData[index];
         try {
           // Normalize column names (case insensitive, flexible matching)
@@ -635,18 +697,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             normalizedRow[normalizedKey] = row[key];
           });
 
-          // Extract data with flexible column matching
-          const symbol = normalizedRow.symbol || normalizedRow.ticker || normalizedRow.stock;
-          const companyName = normalizedRow.companyname || normalizedRow.company || normalizedRow.name || symbol;
-          const shares = normalizedRow.shares || normalizedRow.quantity || normalizedRow.qty;
+          // Extract data with flexible column matching for various CSV formats
+          const symbol = normalizedRow.symbol || normalizedRow['symbol '] || normalizedRow.ticker || normalizedRow.stock;
+          const companyName = normalizedRow.description || normalizedRow.companyname || normalizedRow.company || normalizedRow.name || symbol;
+          const shares = normalizedRow.quantity || normalizedRow.shares || normalizedRow.qty;
           
-          // Priority order: avgCostPerShare, then Unit Cost, then other alternatives
-          const avgCostPerShare = normalizedRow.avgcostpershare || normalizedRow.averagecost || 
-                                normalizedRow.unitcost || normalizedRow['unit cost'] ||
+          // Priority order for cost: Unit Cost, Average Cost, Price, Cost
+          const avgCostPerShare = normalizedRow['unit cost'] || normalizedRow.unitcost || 
+                                normalizedRow.averagecost || normalizedRow.avgcostpershare ||
                                 normalizedRow.price || normalizedRow.cost || normalizedRow.avgcost;
 
-          if (!symbol || !shares || !avgCostPerShare) {
-            errors.push(`Row ${index + 1}: Missing required fields (symbol, shares, avgCostPerShare)`);
+          // Skip rows that are clearly not holdings data (empty symbol, totals, cash, etc.)
+          if (!symbol || !symbol.toString().trim() || 
+              symbol.toString().toLowerCase().includes('total') ||
+              symbol.toString().toLowerCase().includes('cash') ||
+              symbol.toString().toLowerCase().includes('balance') ||
+              symbol.toString().toLowerCase().includes('money') ||
+              symbol.toString().toLowerCase().includes('pending')) {
+            continue;
+          }
+
+          if (!shares || !avgCostPerShare) {
+            errors.push(`Row ${index + 1}: Missing required fields (symbol: "${symbol}", shares: "${shares}", avgCostPerShare: "${avgCostPerShare}")`);
             continue;
           }
 
