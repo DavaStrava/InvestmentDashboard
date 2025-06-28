@@ -351,65 +351,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Auth routes - with comprehensive debugging
-  app.get('/api/auth/user', async (req: any, res) => {
+  // Simple session verification endpoint for debugging
+  app.get('/api/auth/session', (req: any, res) => {
+    res.json({
+      isAuthenticated: req.isAuthenticated(),
+      user: req.user,
+      sessionID: req.sessionID,
+      hasSession: !!req.session,
+      hasPassport: !!(req.session?.passport)
+    });
+  });
+
+  // Fixed auth user endpoint using same logic as working portfolio endpoints  
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      console.log('[AUTH_DEBUG] Session details:', {
-        sessionID: req.sessionID,
-        isAuthenticated: req.isAuthenticated(),
-        userExists: !!req.user,
-        sessionData: req.session ? 'exists' : 'missing',
-        passport: req.session?.passport ? 'exists' : 'missing'
-      });
-
-      // Check if user is authenticated using the same logic as portfolio endpoints
-      if (!req.isAuthenticated() || !req.user) {
-        console.log('[AUTH_DEBUG] User not authenticated - session details:', {
-          session: req.session,
-          passport: req.session?.passport,
-          user: req.user
-        });
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      // Debug logging for authentication issues
-      console.log('[AUTH_DEBUG] User auth request:', {
-        isAuthenticated: req.isAuthenticated(),
-        userExists: !!req.user,
-        userStructure: req.user ? Object.keys(req.user) : 'none',
-        claims: req.user?.claims ? Object.keys(req.user.claims) : 'none',
-        fullUser: req.user
-      });
-
-      const userId = req.user.claims?.sub;
-      if (!userId) {
-        console.log('[AUTH_DEBUG] No user ID found in claims:', req.user);
-        return res.status(401).json({ message: "Invalid user session" });
-      }
-
-      console.log(`[AUTH_DEBUG] Extracting user ID: ${userId}`);
+      console.log('[AUTH_USER] Authenticated request received');
+      const userId = getUserId(req);
+      console.log(`[AUTH_USER] User ID extracted: ${userId}`);
       
       const user = await storage.getUser(userId);
-      console.log(`[AUTH_DEBUG] Database user lookup result:`, { 
-        userFound: !!user,
-        userId: userId
-      });
-      
       if (!user) {
-        console.log(`[AUTH_USER] User ${userId} not found in database, this may be their first login`);
-        // Return a basic user object if not found in database
+        // Return a basic user object if not found in database (first login case)
+        console.log(`[AUTH_USER] First login for user ${userId}, creating basic profile`);
         return res.json({
           id: userId,
-          email: req.user.claims.email,
-          firstName: req.user.claims.first_name,
-          lastName: req.user.claims.last_name,
-          profileImageUrl: req.user.claims.profile_image_url
+          email: req.user.claims?.email,
+          firstName: req.user.claims?.first_name,
+          lastName: req.user.claims?.last_name,
+          profileImageUrl: req.user.claims?.profile_image_url
         });
       }
       
+      console.log(`[AUTH_USER] Returning existing user data for ${userId}`);
       res.json(user);
     } catch (error) {
-      console.error("[AUTH_USER] Error fetching user", error);
+      console.error("[AUTH_USER] Error:", error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
