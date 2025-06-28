@@ -354,11 +354,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
+      // Debug logging for authentication issues
+      logger.info('AUTH_DEBUG', 'User auth request:', {
+        isAuthenticated: req.isAuthenticated(),
+        userExists: !!req.user,
+        userStructure: req.user ? Object.keys(req.user) : 'none',
+        claims: req.user?.claims ? Object.keys(req.user.claims) : 'none'
+      });
+
       const userId = req.user.claims.sub;
+      logger.info('AUTH_DEBUG', `Extracting user ID: ${userId}`);
+      
       const user = await storage.getUser(userId);
+      logger.info('AUTH_DEBUG', `Database user lookup result:`, { 
+        userFound: !!user,
+        userId: userId
+      });
+      
+      if (!user) {
+        logger.warn('AUTH_USER', `User ${userId} not found in database, this may be their first login`);
+        // Return a basic user object if not found in database
+        return res.json({
+          id: userId,
+          email: req.user.claims.email,
+          firstName: req.user.claims.first_name,
+          lastName: req.user.claims.last_name,
+          profileImageUrl: req.user.claims.profile_image_url
+        });
+      }
+      
       res.json(user);
     } catch (error) {
-      console.error("Error fetching user:", error);
+      logger.error("AUTH_USER", "Error fetching user", error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
@@ -495,8 +522,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Portfolio summary endpoint - PROTECTED with optimized database aggregation
   app.get("/api/portfolio/summary", isAuthenticated, async (req, res) => {
     try {
+      logger.info('PORTFOLIO_DEBUG', 'Portfolio summary request received', {
+        isAuthenticated: req.isAuthenticated(),
+        userExists: !!req.user,
+        userClaims: req.user?.claims ? 'present' : 'missing'
+      });
+
       const userId = getUserId(req);
+      logger.info('PORTFOLIO_DEBUG', `Extracted userId: ${userId}`);
+      
       if (!userId) {
+        logger.error('PORTFOLIO_AUTH', 'No userId found despite authentication');
         return res.status(401).json({ message: "Unauthorized" });
       }
 
@@ -541,7 +577,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/holdings", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
+      logger.info('HOLDINGS_DEBUG', `Holdings request for user: ${userId}`);
+      
       const holdings = await storage.getHoldings(userId);
+      logger.info('HOLDINGS_DEBUG', `Found ${holdings.length} holdings for user ${userId}`);
       
       if (holdings.length === 0) {
         return res.json([]);
