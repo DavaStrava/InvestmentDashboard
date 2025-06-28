@@ -351,39 +351,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Auth routes - simplified to handle authentication issues
+  // Auth routes - with comprehensive debugging
   app.get('/api/auth/user', async (req: any, res) => {
     try {
+      console.log('[AUTH_DEBUG] Session details:', {
+        sessionID: req.sessionID,
+        isAuthenticated: req.isAuthenticated(),
+        userExists: !!req.user,
+        sessionData: req.session ? 'exists' : 'missing',
+        passport: req.session?.passport ? 'exists' : 'missing'
+      });
+
       // Check if user is authenticated using the same logic as portfolio endpoints
       if (!req.isAuthenticated() || !req.user) {
-        logger.info('AUTH_DEBUG', 'User not authenticated');
+        console.log('[AUTH_DEBUG] User not authenticated - session details:', {
+          session: req.session,
+          passport: req.session?.passport,
+          user: req.user
+        });
         return res.status(401).json({ message: "Unauthorized" });
       }
 
       // Debug logging for authentication issues
-      logger.info('AUTH_DEBUG', 'User auth request:', {
+      console.log('[AUTH_DEBUG] User auth request:', {
         isAuthenticated: req.isAuthenticated(),
         userExists: !!req.user,
         userStructure: req.user ? Object.keys(req.user) : 'none',
-        claims: req.user?.claims ? Object.keys(req.user.claims) : 'none'
+        claims: req.user?.claims ? Object.keys(req.user.claims) : 'none',
+        fullUser: req.user
       });
 
       const userId = req.user.claims?.sub;
       if (!userId) {
-        logger.error('AUTH_DEBUG', 'No user ID found in claims');
+        console.log('[AUTH_DEBUG] No user ID found in claims:', req.user);
         return res.status(401).json({ message: "Invalid user session" });
       }
 
-      logger.info('AUTH_DEBUG', `Extracting user ID: ${userId}`);
+      console.log(`[AUTH_DEBUG] Extracting user ID: ${userId}`);
       
       const user = await storage.getUser(userId);
-      logger.info('AUTH_DEBUG', `Database user lookup result:`, { 
+      console.log(`[AUTH_DEBUG] Database user lookup result:`, { 
         userFound: !!user,
         userId: userId
       });
       
       if (!user) {
-        logger.warn('AUTH_USER', `User ${userId} not found in database, this may be their first login`);
+        console.log(`[AUTH_USER] User ${userId} not found in database, this may be their first login`);
         // Return a basic user object if not found in database
         return res.json({
           id: userId,
@@ -396,7 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(user);
     } catch (error) {
-      logger.error("AUTH_USER", "Error fetching user", error);
+      console.error("[AUTH_USER] Error fetching user", error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
