@@ -351,9 +351,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  // Auth routes - simplified to handle authentication issues
+  app.get('/api/auth/user', async (req: any, res) => {
     try {
+      // Check if user is authenticated using the same logic as portfolio endpoints
+      if (!req.isAuthenticated() || !req.user) {
+        logger.info('AUTH_DEBUG', 'User not authenticated');
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       // Debug logging for authentication issues
       logger.info('AUTH_DEBUG', 'User auth request:', {
         isAuthenticated: req.isAuthenticated(),
@@ -362,7 +368,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         claims: req.user?.claims ? Object.keys(req.user.claims) : 'none'
       });
 
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub;
+      if (!userId) {
+        logger.error('AUTH_DEBUG', 'No user ID found in claims');
+        return res.status(401).json({ message: "Invalid user session" });
+      }
+
       logger.info('AUTH_DEBUG', `Extracting user ID: ${userId}`);
       
       const user = await storage.getUser(userId);
