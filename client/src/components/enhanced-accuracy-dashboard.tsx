@@ -26,10 +26,7 @@ export default function EnhancedAccuracyDashboard({ symbol }: EnhancedAccuracyDa
   const { data: accuracy, isLoading, error } = useQuery<EnhancedAccuracy>({
     queryKey: symbol ? ['/api/predictions/accuracy/enhanced', symbol] : ['/api/predictions/accuracy/enhanced'],
     enabled: true,
-    retry: 1,
-    onError: (error) => {
-      console.error('Enhanced accuracy dashboard error:', error);
-    }
+    retry: 1
   });
 
   if (error) {

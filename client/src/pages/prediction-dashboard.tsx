@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import EnhancedAccuracyDashboard from "@/components/enhanced-accuracy-dashboard";
+import SimpleAccuracyDashboard from "@/components/simple-accuracy-dashboard";
 import { PredictionTable } from "@/components/prediction-table";
 import {
   Table,
@@ -252,7 +252,7 @@ export default function PredictionDashboard() {
         </div>
 
         {/* Enhanced Analytics */}
-        <EnhancedAccuracyDashboard />
+        <SimpleAccuracyDashboard />
 
         {/* Filters */}
         <Card>
