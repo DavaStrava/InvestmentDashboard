@@ -1277,13 +1277,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { dbOptimizer } = await import('./database-optimizer');
       const bulkMetrics = await dbOptimizer.getBulkPredictionMetrics(userId);
       
-      // Map to existing enhanced accuracy interface
+      // Map to enhanced accuracy interface that the frontend expects
       const accuracy = {
-        totalPredictions: bulkMetrics.totalPredictions,
-        overallAccuracy: bulkMetrics.overallAccuracy,
+        oneDayAccuracy: bulkMetrics.accuracyByTimeframe.oneDay.percentage,
+        oneWeekAccuracy: bulkMetrics.accuracyByTimeframe.oneWeek.percentage,
+        oneMonthAccuracy: bulkMetrics.accuracyByTimeframe.oneMonth.percentage,
+        oneDayPriceAccuracy: bulkMetrics.accuracyByTimeframe.oneDay.percentage, // Using same for now
+        oneWeekPriceAccuracy: bulkMetrics.accuracyByTimeframe.oneWeek.percentage,
+        oneMonthPriceAccuracy: bulkMetrics.accuracyByTimeframe.oneMonth.percentage,
+        oneDayDirectionAccuracy: bulkMetrics.accuracyByTimeframe.oneDay.percentage, // Using same for now
+        oneWeekDirectionAccuracy: bulkMetrics.accuracyByTimeframe.oneWeek.percentage,
+        oneMonthDirectionAccuracy: bulkMetrics.accuracyByTimeframe.oneMonth.percentage,
         averageWeightedScore: bulkMetrics.avgWeightedScore,
-        accuracyByTimeframe: bulkMetrics.accuracyByTimeframe,
-        topPerformingSymbols: bulkMetrics.topPerformingSymbols
+        totalPredictions: bulkMetrics.totalPredictions
       };
       
       logger.performance("PREDICTION_ACCURACY", Date.now(), {

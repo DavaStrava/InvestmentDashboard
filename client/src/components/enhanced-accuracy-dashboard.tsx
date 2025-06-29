@@ -23,10 +23,35 @@ interface EnhancedAccuracyDashboardProps {
 }
 
 export default function EnhancedAccuracyDashboard({ symbol }: EnhancedAccuracyDashboardProps) {
-  const { data: accuracy, isLoading } = useQuery<EnhancedAccuracy>({
+  const { data: accuracy, isLoading, error } = useQuery<EnhancedAccuracy>({
     queryKey: symbol ? ['/api/predictions/accuracy/enhanced', symbol] : ['/api/predictions/accuracy/enhanced'],
     enabled: true,
+    retry: 1,
+    onError: (error) => {
+      console.error('Enhanced accuracy dashboard error:', error);
+    }
   });
+
+  if (error) {
+    console.error('Enhanced accuracy dashboard error:', error);
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5" />
+            Enhanced Prediction Analytics
+          </CardTitle>
+          <CardDescription>Unable to load prediction analytics</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">
+            <p className="text-gray-500">No prediction data available yet.</p>
+            <p className="text-sm text-gray-400 mt-2">Generate some predictions to see analytics here.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -59,6 +84,12 @@ export default function EnhancedAccuracyDashboard({ symbol }: EnhancedAccuracyDa
           </CardTitle>
           <CardDescription>No prediction data available</CardDescription>
         </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">
+            <p className="text-gray-500">No predictions found.</p>
+            <p className="text-sm text-gray-400 mt-2">Start making predictions in the portfolio section.</p>
+          </div>
+        </CardContent>
       </Card>
     );
   }
