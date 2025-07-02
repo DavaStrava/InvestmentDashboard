@@ -137,16 +137,51 @@ export default function Watchlist({ onSelectStock, expanded = false, onAddToWatc
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Watchlist</CardTitle>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-primary hover:text-blue-700"
-            onClick={onAddToWatchlist}
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add
-          </Button>
+          <div className="flex items-center space-x-4">
+            <CardTitle>Watchlist</CardTitle>
+            {selectedItems.size > 0 && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">
+                  {selectedItems.size} selected
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={removeBulkFromWatchlistMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Remove Selected
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            {Array.isArray(watchlist) && watchlist.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSelectAll}
+                className="text-gray-600 hover:text-gray-900"
+                title="Select all items"
+              >
+                {selectedItems.size === watchlist.length ? (
+                  <CheckSquare className="w-4 h-4" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+              </Button>
+            )}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-primary hover:text-blue-700"
+              onClick={onAddToWatchlist}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
@@ -165,41 +200,71 @@ export default function Watchlist({ onSelectStock, expanded = false, onAddToWatc
           <div className="divide-y divide-gray-200">
             {Array.isArray(watchlist) && watchlist.slice(0, expanded ? undefined : 6).map((item: any) => (
               <div key={item.id} className="group">
-                <Link href={`/stock/${item.symbol}`}>
-                  <div className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                <div className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedItems.has(item.id)}
+                          onCheckedChange={() => toggleSelectItem(item.id)}
+                          aria-label={`Select ${item.symbol}`}
+                        />
+                      </div>
+                      <div className="flex-1 cursor-pointer" onClick={() => onSelectStock(item.symbol)}>
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-gray-900 dark:text-gray-100">{item.symbol}</p>
                           <ExternalLink className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{item.companyName}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(item.currentPrice)}</p>
-                          <p className={`text-xs ${getChangeColor(item.dailyChange)}`}>
-                            {formatPercent(item.dailyChangePercent)}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6"
-                          onClick={(e) => handleRemoveFromWatchlist(item.id, e)}
-                          disabled={removeFromWatchlistMutation.isPending}
-                        >
-                          <Trash2 className="w-3 h-3 text-red-500" />
-                        </Button>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(item.currentPrice)}</p>
+                        <p className={`text-xs ${getChangeColor(item.dailyChange)}`}>
+                          {formatPercent(item.dailyChangePercent)}
+                        </p>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6"
+                        onClick={(e) => handleRemoveFromWatchlist(item.id, item.symbol, e)}
+                        disabled={removeFromWatchlistMutation.isPending}
+                      >
+                        <Trash2 className="w-3 h-3 text-red-500" />
+                      </Button>
                     </div>
                   </div>
-                </Link>
+                </div>
               </div>
             ))}
           </div>
         )}
       </CardContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Removal</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove <strong>{itemToDelete?.symbol}</strong> from your watchlist? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={removeFromWatchlistMutation.isPending}
+            >
+              {removeFromWatchlistMutation.isPending ? "Removing..." : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
