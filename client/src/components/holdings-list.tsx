@@ -290,6 +290,15 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
                     className="hover:bg-gray-50 cursor-pointer transition-colors group"
                     onClick={() => onSelectStock(holding.symbol)}
                   >
+                    {/* Checkbox */}
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedHoldings.has(holding.id)}
+                        onCheckedChange={() => toggleSelectHolding(holding.id)}
+                        aria-label={`Select ${holding.symbol}`}
+                      />
+                    </td>
+                    
                     {/* Stock Info */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -370,12 +379,12 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
                     </td>
 
                     {/* Actions */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => handleDeleteHolding(holding.id, e)}
+                        onClick={(e) => handleDeleteHolding(holding.id, holding.symbol, e)}
                         disabled={deleteHoldingMutation.isPending}
                       >
                         <Trash2 className="w-4 h-4 text-red-500" />
@@ -388,6 +397,29 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
           </div>
         )}
       </CardContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove <strong>{holdingToDelete?.symbol}</strong> from your portfolio? 
+              This action cannot be undone and will permanently delete this holding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteHoldingMutation.isPending}
+            >
+              {deleteHoldingMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

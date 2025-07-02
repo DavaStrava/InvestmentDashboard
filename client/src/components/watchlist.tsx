@@ -1,11 +1,23 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { watchlistApi } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatPercent, getChangeColor } from "@/lib/utils";
-import { Plus, Trash2, ExternalLink } from "lucide-react";
+import { Plus, Trash2, ExternalLink, CheckSquare, Square } from "lucide-react";
 import { Link } from "wouter";
 
 interface WatchlistProps {
@@ -15,6 +27,9 @@ interface WatchlistProps {
 }
 
 export default function Watchlist({ onSelectStock, expanded = false, onAddToWatchlist }: WatchlistProps) {
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{id: number, symbol: string} | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -27,6 +42,9 @@ export default function Watchlist({ onSelectStock, expanded = false, onAddToWatc
     mutationFn: watchlistApi.removeFromWatchlist,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+      setSelectedItems(new Set());
+      setShowDeleteConfirm(false);
+      setItemToDelete(null);
       toast({ title: "Removed from watchlist" });
     },
     onError: () => {
@@ -34,9 +52,56 @@ export default function Watchlist({ onSelectStock, expanded = false, onAddToWatc
     },
   });
 
-  const handleRemoveFromWatchlist = (id: number, e: React.MouseEvent) => {
+  const removeBulkFromWatchlistMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await Promise.all(ids.map(id => watchlistApi.removeFromWatchlist(id)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+      setSelectedItems(new Set());
+      toast({ title: `${selectedItems.size} items removed from watchlist` });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove selected items", variant: "destructive" });
+    },
+  });
+
+  const handleRemoveFromWatchlist = (id: number, symbol: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    removeFromWatchlistMutation.mutate(id);
+    setItemToDelete({ id, symbol });
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    if (itemToDelete) {
+      removeFromWatchlistMutation.mutate(itemToDelete.id);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedItems.size > 0) {
+      removeBulkFromWatchlistMutation.mutate(Array.from(selectedItems));
+    }
+  };
+
+  const toggleSelectItem = (id: number) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (!watchlist || !Array.isArray(watchlist)) return;
+    
+    if (selectedItems.size === watchlist.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(watchlist.map((item: any) => item.id)));
+    }
   };
 
   if (isLoading) {
