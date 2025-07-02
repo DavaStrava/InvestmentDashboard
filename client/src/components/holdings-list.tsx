@@ -6,7 +6,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatPercent, getChangeColor } from "@/lib/utils";
-import { ArrowUpDown, Trash2, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ArrowUpDown, Trash2, TrendingUp, TrendingDown, Minus, CheckSquare, Square } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useState } from "react";
 
 interface HoldingsListProps {
@@ -17,6 +28,9 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
   const [sortBy, setSortBy] = useState<string>("all");
   const [sortField, setSortField] = useState<string>("symbol");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [selectedHoldings, setSelectedHoldings] = useState<Set<number>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [holdingToDelete, setHoldingToDelete] = useState<{id: number, symbol: string} | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -33,6 +47,9 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/holdings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      setSelectedHoldings(new Set());
+      setShowDeleteConfirm(false);
+      setHoldingToDelete(null);
       toast({ title: "Holding removed successfully" });
     },
     onError: () => {
@@ -40,9 +57,55 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
     },
   });
 
-  const handleDeleteHolding = (id: number, e: React.MouseEvent) => {
+  const deleteBulkHoldingsMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await Promise.all(ids.map(id => portfolioApi.removeHolding(id)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/holdings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      setSelectedHoldings(new Set());
+      toast({ title: `${selectedHoldings.size} holdings removed successfully` });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove selected holdings", variant: "destructive" });
+    },
+  });
+
+  const handleDeleteHolding = (id: number, symbol: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    deleteHoldingMutation.mutate(id);
+    setHoldingToDelete({ id, symbol });
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    if (holdingToDelete) {
+      deleteHoldingMutation.mutate(holdingToDelete.id);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedHoldings.size > 0) {
+      deleteBulkHoldingsMutation.mutate(Array.from(selectedHoldings));
+    }
+  };
+
+  const toggleSelectHolding = (id: number) => {
+    const newSelected = new Set(selectedHoldings);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedHoldings(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedHoldings.size === filteredAndSortedHoldings.length) {
+      setSelectedHoldings(new Set());
+    } else {
+      setSelectedHoldings(new Set(filteredAndSortedHoldings.map((h: any) => h.id)));
+    }
   };
 
   const handleSort = (field: string) => {
@@ -151,7 +214,25 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>My Holdings ({holdingsArray.length})</CardTitle>
+          <div className="flex items-center space-x-4">
+            <CardTitle>My Holdings ({holdingsArray.length})</CardTitle>
+            {selectedHoldings.size > 0 && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">
+                  {selectedHoldings.size} selected
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={deleteBulkHoldingsMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete Selected
+                </Button>
+              </div>
+            )}
+          </div>
           <div className="flex items-center space-x-2">
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-36">
@@ -183,6 +264,13 @@ export default function HoldingsList({ onSelectStock }: HoldingsListProps) {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <Checkbox
+                      checked={selectedHoldings.size > 0 && selectedHoldings.size === filteredAndSortedHoldings.length}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all holdings"
+                    />
+                  </th>
                   <SortableHeader field="symbol">Stock</SortableHeader>
                   <SortableHeader field="shares">Shares</SortableHeader>
                   <SortableHeader field="price">Price</SortableHeader>
